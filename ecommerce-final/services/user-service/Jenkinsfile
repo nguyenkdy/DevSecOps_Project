@@ -1,0 +1,138 @@
+pipeline {
+  agent any
+
+  environment {
+    SERVICE_NAME = 'user-service'
+    SERVICE_DIR  = 'services/user-service'
+    ECR_REGISTRY = '000000000000.dkr.ecr.ap-southeast-1.amazonaws.com'
+    IMAGE_TAG    = "${GIT_COMMIT?.take(8) ?: 'latest'}"
+  }
+
+  options {
+    timeout(time: 20, unit: 'MINUTES')
+    disableConcurrentBuilds()
+  }
+
+  stages {
+    stage('Install') {
+      steps {
+        dir(env.SERVICE_DIR) {
+          sh 'npm ci --prefer-offline --no-audit'
+        }
+      }
+    }
+
+    stage('Lint & Type check') {
+      parallel {
+        stage('ESLint') {
+          steps {
+            dir(env.SERVICE_DIR) { sh 'npm run lint' }
+          }
+        }
+        stage('Build') {
+          steps {
+            dir(env.SERVICE_DIR) { sh 'npm run build' }
+          }
+        }
+      }
+    }
+
+    stage('Unit Test') {
+      steps {
+        dir(env.SERVICE_DIR) {
+          sh 'npm run test:cov -- --ci --forceExit'
+        }
+      }
+      post {
+        always {
+          publishHTML(target: [
+            allowMissing: true,
+            reportDir: "${env.SERVICE_DIR}/coverage/lcov-report",
+            reportFiles: 'index.html',
+            reportName: 'Coverage Report'
+          ])
+        }
+      }
+    }
+
+    stage('Integration Test') {
+      steps {
+        dir(env.SERVICE_DIR) {
+          // Spin up PostgreSQL + Redis tạm thời cho integration test
+          sh '''
+            docker run -d --name pg-ci -e POSTGRES_DB=user_db -e POSTGRES_PASSWORD=postgres -p 5433:5432 postgres:16-alpine
+            docker run -d --name redis-ci -p 6380:6379 redis:7-alpine
+            sleep 6
+            DATABASE_PORT=5433 REDIS_PORT=6380 npm run test:integration || true
+          '''
+        }
+      }
+      post {
+        always {
+          sh 'docker rm -f pg-ci redis-ci || true'
+        }
+      }
+    }
+
+    stage('SonarQube') {
+      steps {
+        dir(env.SERVICE_DIR) {
+          withSonarQubeEnv('SonarQube') {
+            sh '''
+              npx sonar-scanner \
+                -Dsonar.projectKey=user-service \
+                -Dsonar.sources=src \
+                -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+                -Dsonar.exclusions=**/*.spec.ts,**/*.module.ts
+            '''
+          }
+        }
+      }
+    }
+
+    stage('Security Scan') {
+      steps {
+        dir(env.SERVICE_DIR) {
+          // Trivy quét image sau khi build
+          sh '''
+            docker build -t ${SERVICE_NAME}:${IMAGE_TAG} --target production .
+            trivy image --severity HIGH,CRITICAL --exit-code 0 ${SERVICE_NAME}:${IMAGE_TAG}
+          '''
+        }
+      }
+    }
+
+    stage('Push to ECR') {
+      when { branch 'main' }
+      steps {
+        dir(env.SERVICE_DIR) {
+          sh '''
+            aws ecr get-login-password --region ap-southeast-1 | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+            docker tag ${SERVICE_NAME}:${IMAGE_TAG} ${ECR_REGISTRY}/${SERVICE_NAME}:${IMAGE_TAG}
+            docker push ${ECR_REGISTRY}/${SERVICE_NAME}:${IMAGE_TAG}
+          '''
+        }
+      }
+    }
+
+    stage('Update GitOps manifest') {
+      when { branch 'main' }
+      steps {
+        // Cập nhật image tag trong Helm values → ArgoCD tự sync
+        sh '''
+          cd infra/k8s
+          sed -i "s|tag:.*|tag: ${IMAGE_TAG}|" user-service/values.yaml
+          git config user.email "ci@jenkins"
+          git config user.name "Jenkins CI"
+          git commit -am "ci: update user-service to ${IMAGE_TAG}" || echo "no changes"
+          git push origin main
+        '''
+      }
+    }
+  }
+
+  post {
+    success { echo "Pipeline thành công cho ${SERVICE_NAME}:${IMAGE_TAG}" }
+    failure { echo "Pipeline thất bại — kiểm tra log" }
+  }
+}

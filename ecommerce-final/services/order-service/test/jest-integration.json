@@ -1,0 +1,23 @@
+{
+  "moduleFileExtensions": [
+    "js",
+    "json",
+    "ts"
+  ],
+  "rootDir": "src",
+  "testMatch": [
+    "**/__tests__/**/*.spec.ts",
+    "**/*.integration.spec.ts"
+  ],
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "collectCoverageFrom": [
+    "**/*.(t|j)s",
+    "!**/*.module.ts",
+    "!**/main.ts",
+    "!**/*.entity.ts",
+    "!**/migrations/**"
+  ],
+  "testEnvironment": "node"
+}

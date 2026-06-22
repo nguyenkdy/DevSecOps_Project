@@ -1,0 +1,139 @@
+pipeline {
+  agent any
+
+  environment {
+    SERVICE_NAME = 'order-service'
+    SERVICE_PATH = 'services/order-service'
+    AWS_ACCOUNT_ID = credentials('aws-account-id')
+    AWS_REGION = 'ap-southeast-1'
+    ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+    IMAGE_TAG = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Build & Test') {
+      steps {
+        dir(SERVICE_PATH) {
+          sh '''
+            npm ci
+            npm run lint
+            npm run build
+            npm run test -- --coverage
+          '''
+        }
+      }
+    }
+
+    stage('SonarQube Code Quality') {
+      when {
+        branch 'develop'
+      }
+      steps {
+        dir(SERVICE_PATH) {
+          sh '''
+            sonar-scanner \
+              -Dsonar.projectKey=${SERVICE_NAME} \
+              -Dsonar.sources=src \
+              -Dsonar.exclusions="**/*.spec.ts,**/node_modules/**" \
+              -Dsonar.coverage.exclusions="**/*.spec.ts" \
+              -Dsonar.test.inclusions="**/*.spec.ts"
+          '''
+        }
+      }
+    }
+
+    stage('Security Scan - Trivy') {
+      steps {
+        sh '''
+          trivy config ${SERVICE_PATH} \
+            --format json \
+            --output trivy-results.json || true
+        '''
+        publishHTML([
+          reportDir: '.',
+          reportFiles: 'trivy-results.json',
+          reportName: 'Trivy Security Scan'
+        ])
+      }
+    }
+
+    stage('Build Docker Image') {
+      steps {
+        sh '''
+          aws ecr get-login-password --region ${AWS_REGION} | \
+            docker login --username AWS --password-stdin ${ECR_REGISTRY}
+
+          docker build -t ${ECR_REGISTRY}/${SERVICE_NAME}:${IMAGE_TAG} \
+            -f ${SERVICE_PATH}/Dockerfile ${SERVICE_PATH}
+          
+          docker tag ${ECR_REGISTRY}/${SERVICE_NAME}:${IMAGE_TAG} \
+            ${ECR_REGISTRY}/${SERVICE_NAME}:latest
+        '''
+      }
+    }
+
+    stage('Push to ECR') {
+      when {
+        branch 'develop'
+      }
+      steps {
+        sh '''
+          docker push ${ECR_REGISTRY}/${SERVICE_NAME}:${IMAGE_TAG}
+          docker push ${ECR_REGISTRY}/${SERVICE_NAME}:latest
+        '''
+      }
+    }
+
+    stage('Update Deployment Manifest') {
+      when {
+        branch 'develop'
+      }
+      steps {
+        sh '''
+          # Update image tag in Helm values/k8s manifest
+          # This will be watched by ArgoCD for auto-sync
+          sed -i "s|image:.*|image: ${ECR_REGISTRY}/${SERVICE_NAME}:${IMAGE_TAG}|g" \
+            infra/k8s/order-service-values.yaml
+          
+          git config user.email "jenkins@ci.local"
+          git config user.name "Jenkins CI"
+          git add infra/k8s/order-service-values.yaml
+          git commit -m "chore: update ${SERVICE_NAME} image to ${IMAGE_TAG}"
+          git push origin develop
+        '''
+      }
+    }
+
+    stage('Notify Deployment') {
+      when {
+        branch 'develop'
+      }
+      steps {
+        echo "ArgoCD will automatically detect manifest changes and sync to EKS"
+      }
+    }
+  }
+
+  post {
+    always {
+      junit "${SERVICE_PATH}/coverage/junit.xml" || true
+      publishHTML([
+        reportDir: "${SERVICE_PATH}/coverage",
+        reportFiles: 'index.html',
+        reportName: 'Test Coverage Report'
+      ])
+    }
+    failure {
+      echo "Build failed for ${SERVICE_NAME}"
+    }
+    success {
+      echo "Build successful for ${SERVICE_NAME} - Image: ${ECR_REGISTRY}/${SERVICE_NAME}:${IMAGE_TAG}"
+    }
+  }
+}
