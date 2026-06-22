@@ -10,8 +10,8 @@
 |---------|------|---------|-----------|
 | api-gateway | 3000 | Cổng vào, routing, JWT validation | Chưa code |
 | user-service | 3001 | Auth, profile, địa chỉ | **Hoàn thành** |
-| product-service | 3002 | Catalog, tìm kiếm, upload ảnh S3 | Chưa code |
-| order-service | 3003 | Cart, checkout, đơn hàng | Chưa code |
+| product-service | 3002 | Catalog, tìm kiếm, upload ảnh S3 | **Hoàn thành** |
+| order-service | 3003 | Cart, checkout, đơn hàng | **Hoàn thành** |
 | payment-service | 3004 | VNPay/MoMo, webhook | Chưa code |
 | frontend | 3005 | Next.js storefront | Chưa code |
 
