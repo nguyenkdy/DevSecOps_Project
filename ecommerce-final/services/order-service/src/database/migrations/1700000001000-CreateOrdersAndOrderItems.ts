@@ -22,7 +22,7 @@ export class CreateOrdersAndOrderItems1700000001000 implements MigrationInterfac
           {
             name: 'status',
             type: 'varchar',
-            length: 20,
+            length: '20',
             default: "'pending'",
           },
           {
@@ -38,19 +38,19 @@ export class CreateOrdersAndOrderItems1700000001000 implements MigrationInterfac
           {
             name: 'paymentMethod',
             type: 'varchar',
-            length: 20,
+            length: '20',
             isNullable: true,
           },
           {
             name: 'paymentStatus',
             type: 'varchar',
-            length: 20,
+            length: '20',
             default: "'pending'",
           },
           {
             name: 'paymentRef',
             type: 'varchar',
-            length: 255,
+            length: '255',
             isNullable: true,
           },
           {
@@ -123,13 +123,13 @@ export class CreateOrdersAndOrderItems1700000001000 implements MigrationInterfac
           {
             name: 'productName',
             type: 'varchar',
-            length: 255,
+            length: '255',
             isNullable: false,
           },
           {
             name: 'productSlug',
             type: 'varchar',
-            length: 300,
+            length: '300',
             isNullable: true,
           },
           {
