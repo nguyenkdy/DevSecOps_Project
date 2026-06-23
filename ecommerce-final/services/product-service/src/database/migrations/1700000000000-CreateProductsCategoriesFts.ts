@@ -14,8 +14,14 @@ export class CreateProductsCategoriesFts1700000000000 implements MigrationInterf
     await qr.query(`CREATE EXTENSION IF NOT EXISTS unaccent`);
     await qr.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
 
-    // Text search config hỗ trợ tiếng Việt không dấu (tách 2 query riêng, pg không hỗ trợ multi-statement)
-    await qr.query(`CREATE TEXT SEARCH CONFIGURATION IF NOT EXISTS vietnamese_unaccent (COPY = simple)`);
+    // CREATE TEXT SEARCH CONFIGURATION không hỗ trợ IF NOT EXISTS trong PostgreSQL
+    // Dùng DO block bắt exception duplicate_object để idempotent
+    await qr.query(`
+      DO $$ BEGIN
+        CREATE TEXT SEARCH CONFIGURATION vietnamese_unaccent (COPY = simple);
+      EXCEPTION WHEN duplicate_object THEN NULL;
+      END $$
+    `);
     await qr.query(`
       ALTER TEXT SEARCH CONFIGURATION vietnamese_unaccent
         ALTER MAPPING FOR hword, hword_part, word

@@ -75,6 +75,7 @@ export class CreateTransactions1700000002000 implements MigrationInterface {
           },
         ],
       }),
+      true, // ifNotExist
     );
   }
 
