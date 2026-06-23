@@ -39,18 +39,21 @@ async function getCategories(): Promise<Category[]> {
   }
 }
 
+// Next.js 15: searchParams là Promise trong server components
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: SearchParams;
+  searchParams: Promise<SearchParams>;
 }) {
+  const params = await searchParams;
+
   const [result, categories] = await Promise.all([
-    getProducts(searchParams),
+    getProducts(params),
     getCategories(),
   ]);
 
   const products: Product[] = result.data ?? [];
-  const currentPage = Number(searchParams.page ?? 1);
+  const currentPage = Number(params.page ?? 1);
   const totalPages: number = result.totalPages ?? 0;
 
   return (
@@ -67,7 +70,7 @@ export default async function ProductsPage({
                 <a
                   href="/products"
                   className={`block px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                    !searchParams.categoryId
+                    !params.categoryId
                       ? 'bg-blue-50 text-blue-700 font-medium'
                       : 'text-gray-600 hover:bg-gray-50'
                   }`}
@@ -78,9 +81,9 @@ export default async function ProductsPage({
               {categories.map((cat) => (
                 <li key={cat.id}>
                   <a
-                    href={`/products?categoryId=${cat.id}${searchParams.search ? `&search=${searchParams.search}` : ''}`}
+                    href={`/products?categoryId=${cat.id}${params.search ? `&search=${params.search}` : ''}`}
                     className={`block px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                      searchParams.categoryId === cat.id
+                      params.categoryId === cat.id
                         ? 'bg-blue-50 text-blue-700 font-medium'
                         : 'text-gray-600 hover:bg-gray-50'
                     }`}
@@ -100,12 +103,12 @@ export default async function ProductsPage({
             <div className="flex gap-2">
               <input
                 name="search"
-                defaultValue={searchParams.search}
+                defaultValue={params.search}
                 placeholder="Tìm kiếm sản phẩm..."
                 className="input-field flex-1"
               />
-              {searchParams.categoryId && (
-                <input type="hidden" name="categoryId" value={searchParams.categoryId} />
+              {params.categoryId && (
+                <input type="hidden" name="categoryId" value={params.categoryId} />
               )}
               <button type="submit" className="btn-primary px-6">
                 Tìm
@@ -114,9 +117,9 @@ export default async function ProductsPage({
           </form>
 
           {/* Results */}
-          {searchParams.search && (
+          {params.search && (
             <p className="text-sm text-gray-500 mb-4">
-              Kết quả tìm kiếm: &ldquo;{searchParams.search}&rdquo; — {result.total} sản phẩm
+              Kết quả tìm kiếm: &ldquo;{params.search}&rdquo; — {result.total} sản phẩm
             </p>
           )}
 
@@ -136,14 +139,14 @@ export default async function ProductsPage({
           {totalPages > 1 && (
             <div className="flex justify-center gap-2 mt-8">
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
-                const params = new URLSearchParams();
-                params.set('page', String(p));
-                if (searchParams.search) params.set('search', searchParams.search);
-                if (searchParams.categoryId) params.set('categoryId', searchParams.categoryId);
+                const qs = new URLSearchParams();
+                qs.set('page', String(p));
+                if (params.search) qs.set('search', params.search);
+                if (params.categoryId) qs.set('categoryId', params.categoryId);
                 return (
                   <a
                     key={p}
-                    href={`/products?${params}`}
+                    href={`/products?${qs}`}
                     className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
                       p === currentPage
                         ? 'bg-blue-600 text-white'

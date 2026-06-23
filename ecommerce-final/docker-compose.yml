@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: ecom-postgres
     environment:
       POSTGRES_USER: postgres
@@ -19,7 +19,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: ecom-redis
     ports:
       - '6379:6379'
@@ -31,7 +31,7 @@ services:
 
   # LocalStack — giả lập S3, SQS, SNS, SES tại local (thay cho AWS thật)
   localstack:
-    image: localstack/localstack:3.0
+    image: localstack/localstack:3.4
     container_name: ecom-localstack
     ports:
       - '4566:4566'

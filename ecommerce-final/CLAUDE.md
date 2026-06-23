@@ -9,31 +9,33 @@
 
 ## Tech stack
 
-- **Backend**: NestJS (TypeScript), TypeORM, PostgreSQL
+- **Backend**: NestJS 11 (TypeScript 5.8), TypeORM 0.3.x, PostgreSQL 17
+- **Runtime**: Node.js 22 LTS (Docker image: node:22-alpine)
 - **Auth**: JWT tự build (access 15 phút + refresh 7 ngày với rotation)
-- **Cache/Session**: Redis (tự deploy trong EKS pod, không dùng ElastiCache)
-- **Async messaging**: AWS SQS + SNS
+- **Cache/Session**: Redis 8 (tự deploy trong EKS pod, không dùng ElastiCache)
+- **Async messaging**: AWS SDK v3 (3.750+) — SQS + SNS
 - **Storage**: AWS S3 + CloudFront CDN
 - **Serverless**: AWS Lambda (payment webhook, image resize, email)
 - **Email**: AWS SES
 - **Search**: PostgreSQL FTS (pg_trgm + unaccent) — thay OpenSearch để tiết kiệm cost
+- **Frontend**: Next.js 15 (App Router), React 19, TailwindCSS 3.4
 - **CI**: Jenkins (Jenkinsfile trong từng service)
 - **CD**: ArgoCD + Helm charts
 - **Infra**: Terraform, AWS EKS
 - **Security**: SonarQube, Trivy, AWS Secrets Manager + External Secrets Operator
-- **Local dev**: Docker Compose + LocalStack (giả lập S3/SQS/SNS/SES)
+- **Local dev**: Docker Compose + LocalStack 3.4 (giả lập S3/SQS/SNS/SES)
 
 ## Cấu trúc monorepo
 
 ```
 ecommerce/
 ├── services/
-│   ├── user-service/      # Port 3001 — HOÀN THÀNH
-│   ├── product-service/   # Port 3002 — HOÀN THÀNH
+│   ├── user-service/      # Port 3001 — HOÀN THÀNH ✅
+│   ├── product-service/   # Port 3002 — HOÀN THÀNH ✅
 │   ├── order-service/     # Port 3003 — HOÀN THÀNH ✅
 │   ├── payment-service/   # Port 3004 — HOÀN THÀNH ✅
 │   └── api-gateway/       # Port 3000 — HOÀN THÀNH ✅
-├── frontend/              # Next.js — Port 3005 — CHƯA LÀM
+├── frontend/              # Next.js 15 — Port 3005 — HOÀN THÀNH ✅
 ├── infra/
 │   ├── docker/            # init-localstack.sh, init-multiple-dbs.sh
 │   ├── terraform/         # AWS infra (chưa làm)
@@ -166,7 +168,7 @@ ecommerce/
 
 
 ### frontend (Port 3005) ✅
-**Stack**: Next.js 14 (App Router), TailwindCSS, TypeScript
+**Stack**: Next.js 15 (App Router), React 19, TailwindCSS 3.4, TypeScript 5.8
 **Gọi API**: Luôn qua api-gateway:3000, không gọi trực tiếp vào service
 **Pages**:
 - `/` — Homepage SSR, featured products ISR 60s
@@ -187,6 +189,7 @@ ecommerce/
 - QR code hiển thị dưới dạng base64 `<img>` (từ payment-service)
 - "Auto approve" button gọi `POST /payments/auto-approve/:ref` để demo thanh toán
 - Docker: development target (npm run dev), production target (next build)
+- **Next.js 15 breaking change**: `searchParams` trong server components là `Promise<SearchParams>` — phải `await` trước khi dùng
 
 ## Database design
 
