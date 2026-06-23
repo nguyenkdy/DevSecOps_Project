@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner, Table, Index } from 'typeorm';
+import { MigrationInterface, QueryRunner, Table, TableIndex } from 'typeorm';
 
 export class CreatePaymentLogs1700000002001 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -51,12 +51,12 @@ export class CreatePaymentLogs1700000002001 implements MigrationInterface {
     // Index để query nhanh theo transactionId và orderId
     await queryRunner.createIndex(
       'payment_logs',
-      new Index('IDX_payment_logs_transaction', ['transactionId']),
+      new TableIndex({ name: 'IDX_payment_logs_transaction', columnNames: ['transactionId'] }),
     );
 
     await queryRunner.createIndex(
       'payment_logs',
-      new Index('IDX_payment_logs_order', ['orderId']),
+      new TableIndex({ name: 'IDX_payment_logs_order', columnNames: ['orderId'] }),
     );
   }
 
