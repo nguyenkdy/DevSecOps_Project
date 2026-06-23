@@ -14,12 +14,12 @@ export class CreateProductsCategoriesFts1700000000000 implements MigrationInterf
     await qr.query(`CREATE EXTENSION IF NOT EXISTS unaccent`);
     await qr.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
 
-    // Text search config hỗ trợ tiếng Việt không dấu
+    // Text search config hỗ trợ tiếng Việt không dấu (tách 2 query riêng, pg không hỗ trợ multi-statement)
+    await qr.query(`CREATE TEXT SEARCH CONFIGURATION IF NOT EXISTS vietnamese_unaccent (COPY = simple)`);
     await qr.query(`
-      CREATE TEXT SEARCH CONFIGURATION IF NOT EXISTS vietnamese_unaccent (COPY = simple);
       ALTER TEXT SEARCH CONFIGURATION vietnamese_unaccent
         ALTER MAPPING FOR hword, hword_part, word
-        WITH unaccent, simple;
+        WITH unaccent, simple
     `);
 
     // Bảng categories

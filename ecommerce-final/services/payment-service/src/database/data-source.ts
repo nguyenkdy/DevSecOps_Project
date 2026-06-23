@@ -5,7 +5,7 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-export const dataSource = new DataSource({
+export default new DataSource({
   type: 'postgres',
   host: process.env.DATABASE_HOST || 'localhost',
   port: parseInt(process.env.DATABASE_PORT || '5432'),
@@ -17,5 +17,3 @@ export const dataSource = new DataSource({
   synchronize: false,
   logging: process.env.NODE_ENV === 'development',
 });
-
-export default dataSource;

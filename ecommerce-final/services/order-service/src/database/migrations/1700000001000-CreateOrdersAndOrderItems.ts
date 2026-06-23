@@ -2,7 +2,7 @@ import { MigrationInterface, QueryRunner, Table, TableIndex, TableForeignKey } f
 
 export class CreateOrdersAndOrderItems1700000001000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Create orders table
+    // Create orders table (ifNotExist=true để idempotent khi synchronize đã tạo trước)
     await queryRunner.createTable(
       new Table({
         name: 'orders',
@@ -71,6 +71,7 @@ export class CreateOrdersAndOrderItems1700000001000 implements MigrationInterfac
           },
         ],
       }),
+      true, // ifNotExist
     );
 
     // Add indexes on orders table
@@ -98,7 +99,7 @@ export class CreateOrdersAndOrderItems1700000001000 implements MigrationInterfac
       }),
     );
 
-    // Create order_items table
+    // Create order_items table (ifNotExist=true)
     await queryRunner.createTable(
       new Table({
         name: 'order_items',
@@ -158,6 +159,7 @@ export class CreateOrdersAndOrderItems1700000001000 implements MigrationInterfac
           }),
         ],
       }),
+      true, // ifNotExist
     );
 
     // Add indexes on order_items table
