@@ -1,0 +1,32 @@
+stage('api-gateway') {
+  when {
+    changeset glob: 'services/api-gateway/**'
+  }
+  stages {
+    stage('Build API Gateway') {
+      steps {
+        dir('services/api-gateway') {
+          sh 'npm install'
+          sh 'npm run build'
+          sh 'npm run lint'
+          sh 'npm test'
+        }
+      }
+    }
+    stage('Build Docker Image') {
+      steps {
+        sh 'docker build -t ecommerce-api-gateway:latest services/api-gateway'
+      }
+    }
+    stage('Push to ECR') {
+      when {
+        branch 'develop'
+      }
+      steps {
+        sh 'aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY'
+        sh 'docker tag ecommerce-api-gateway:latest $ECR_REGISTRY/ecommerce-api-gateway:latest'
+        sh 'docker push $ECR_REGISTRY/ecommerce-api-gateway:latest'
+      }
+    }
+  }
+}

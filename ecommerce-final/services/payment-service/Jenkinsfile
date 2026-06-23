@@ -1,0 +1,32 @@
+stage('payment-service') {
+  when {
+    changeset glob: 'services/payment-service/**'
+  }
+  stages {
+    stage('Build Payment Service') {
+      steps {
+        dir('services/payment-service') {
+          sh 'npm install'
+          sh 'npm run build'
+          sh 'npm run lint'
+          sh 'npm test'
+        }
+      }
+    }
+    stage('Build Docker Image') {
+      steps {
+        sh 'docker build -t ecommerce-payment-service:latest services/payment-service'
+      }
+    }
+    stage('Push to ECR') {
+      when {
+        branch 'develop'
+      }
+      steps {
+        sh 'aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY'
+        sh 'docker tag ecommerce-payment-service:latest $ECR_REGISTRY/ecommerce-payment-service:latest'
+        sh 'docker push $ECR_REGISTRY/ecommerce-payment-service:latest'
+      }
+    }
+  }
+}

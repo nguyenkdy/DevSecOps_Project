@@ -1,0 +1,29 @@
+stage('frontend') {
+  when {
+    changeset glob: 'frontend/**'
+  }
+  stages {
+    stage('Build Frontend') {
+      steps {
+        dir('frontend') {
+          sh 'npm install'
+          sh 'npm run lint'
+          sh 'npm run build'
+        }
+      }
+    }
+    stage('Build Docker Image') {
+      steps {
+        sh 'docker build -t ecommerce-frontend:latest frontend'
+      }
+    }
+    stage('Push to ECR') {
+      when { branch 'develop' }
+      steps {
+        sh 'aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY'
+        sh 'docker tag ecommerce-frontend:latest $ECR_REGISTRY/ecommerce-frontend:latest'
+        sh 'docker push $ECR_REGISTRY/ecommerce-frontend:latest'
+      }
+    }
+  }
+}

@@ -103,8 +103,8 @@ services:
       DATABASE_HOST: postgres
       DATABASE_NAME: order_db
       REDIS_HOST: redis
-      AWS_ENDPOINT: http://localhost:4566
-      SQS_QUEUE_URL: http://localhost:4566/000000000000/order-created
+      AWS_ENDPOINT: http://localstack:4566
+      SQS_QUEUE_URL: http://localstack:4566/000000000000/order-created
       JWT_ACCESS_SECRET: dev_access_secret
       PRODUCT_SERVICE_URL: http://product-service:3002
     volumes:
@@ -119,10 +119,80 @@ services:
       product-service:
         condition: service_started
 
-  # Các service còn lại — bỏ comment khi đã code xong
-  # payment-service:  (port 3004)
-  # api-gateway:      (port 3000)
-  # frontend:         (port 3005)
+  payment-service:
+    build:
+      context: ./services/payment-service
+      target: build
+    container_name: ecom-payment-service
+    command: npm run start:dev
+    ports:
+      - '3004:3004'
+    environment:
+      NODE_ENV: development
+      DATABASE_HOST: postgres
+      DATABASE_NAME: payment_db
+      AWS_ENDPOINT: http://localstack:4566
+      AWS_REGION: ap-southeast-1
+      SQS_QUEUE_URL: http://localstack:4566/000000000000/order-created
+      SNS_TOPIC_ARN: arn:aws:sns:ap-southeast-1:000000000000:order-events
+      JWT_ACCESS_SECRET: dev_access_secret
+      VNPAY_SANDBOX: true
+      VNPAY_MERCHANT_ID: DEMO123
+    volumes:
+      - ./services/payment-service/src:/app/src
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_started
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      target: build
+    container_name: ecom-api-gateway
+    command: npm run start:dev
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      JWT_ACCESS_SECRET: dev_access_secret
+      USER_SERVICE_URL: http://user-service:3001
+      PRODUCT_SERVICE_URL: http://product-service:3002
+      ORDER_SERVICE_URL: http://order-service:3003
+      PAYMENT_SERVICE_URL: http://payment-service:3004
+      RATE_LIMIT_MAX: 200
+      RATE_LIMIT_AUTH_MAX: 20
+    volumes:
+      - ./services/api-gateway/src:/app/src
+    depends_on:
+      - user-service
+      - product-service
+      - order-service
+      - payment-service
+
+  frontend:
+    build:
+      context: ./frontend
+      target: development
+    container_name: ecom-frontend
+    command: npm run dev
+    ports:
+      - '3005:3005'
+    environment:
+      NODE_ENV: development
+      PORT: 3005
+      NEXT_TELEMETRY_DISABLED: 1
+      # Server-side fetch (SSR) gọi trực tiếp vào api-gateway qua Docker network
+      API_URL: http://api-gateway:3000
+      # Client-side fetch qua browser → localhost
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    depends_on:
+      - api-gateway
 
 volumes:
   pgdata:

@@ -31,8 +31,8 @@ ecommerce/
 │   ├── user-service/      # Port 3001 — HOÀN THÀNH
 │   ├── product-service/   # Port 3002 — HOÀN THÀNH
 │   ├── order-service/     # Port 3003 — HOÀN THÀNH ✅
-│   ├── payment-service/   # Port 3004 — CHƯA LÀM
-│   └── api-gateway/       # Port 3000 — CHƯA LÀM
+│   ├── payment-service/   # Port 3004 — HOÀN THÀNH ✅
+│   └── api-gateway/       # Port 3000 — HOÀN THÀNH ✅
 ├── frontend/              # Next.js — Port 3005 — CHƯA LÀM
 ├── infra/
 │   ├── docker/            # init-localstack.sh, init-multiple-dbs.sh
@@ -132,21 +132,20 @@ ecommerce/
 
 
 
-### payment-service (Port 3004)
-**Chức năng**: Xử lý thanh toán VNPay/MoMo + webhook
-**Entities cần tạo**: Transaction, PaymentLog
+### payment-service (Port 3004) ✅
+**Chức năng**: Xử lý thanh toán VNPay/MoMo (demo/fake) + webhook
+**Entities**: Transaction, PaymentLog
 **DB**: payment_db
-**Luồng chính**:
-1. Consume SQS queue `order-created` từ Order Service
-2. Tạo VNPay payment URL (dùng VNPay sandbox để test)
-3. Trả URL về client qua Order Service
-4. VNPay callback → Lambda webhook verify HMAC → gọi Payment Service update
-5. Payment Service publish SNS `order.paid` → fan-out:
-   - Lambda #1: gọi Order Service update status = confirmed
-   - Lambda #2: gửi email xác nhận qua SES
-**VNPay sandbox**: https://sandbox.vnpayment.vn/
+**Đặc điểm quan trọng**:
+- Fake QR code base64 (thư viện `qrcode`) + fake VNPay URL cho demo
+- SQS Consumer (`SqsConsumerService`) tự động poll `order-created` queue, tạo Transaction pending
+- PaymentLog audit trail ghi nhận mọi sự kiện (7 loại event)
+- POST /payments/auto-approve/:ref — duyệt thanh toán ngay không cần scan QR (demo)
+- Publish SNS `order.paid` sau khi thanh toán thành công
+- `CommonModule` dùng `@Global()` để JwtAuthGuard available toàn app
+**Tests**: 14 unit tests pass (payments.service.spec.ts)
 
-### api-gateway (Port 3000)
+### api-gateway (Port 3000) ✅
 **Chức năng**: Single entry point, routing, JWT validation, rate limiting
 **Không có DB**
 **Route map**:
@@ -157,12 +156,37 @@ ecommerce/
 - /api/v1/cart/* → order-service:3003
 - /api/v1/orders/* → order-service:3003
 - /api/v1/payments/* → payment-service:3004
-**Lưu ý**: JWT validation tại gateway (không validate lại trong từng service, trừ product-service đang tự validate)
+**Đặc điểm quan trọng**:
+- JWT validation tại Express-level middleware (trước proxy, sau đó downstream không cần validate lại)
+- Forward user info (`x-user-id`, `x-user-email`, `x-user-role`) sang downstream qua internal headers
+- Rate limiting: 200 req/15min tổng, 20 req/15min cho auth/login và auth/register (chống brute-force)
+- Public routes không cần JWT: GET /products/*, GET /categories/*, POST /auth/(register|login|refresh), POST /payments/callback
+- `http-proxy-middleware` v3 + `express-rate-limit` v7
+- Error handler: trả 503 khi downstream không khả dụng
 
-### frontend (Port 3005)
-**Stack**: Next.js 14 (App Router), TailwindCSS
+
+### frontend (Port 3005) ✅
+**Stack**: Next.js 14 (App Router), TailwindCSS, TypeScript
 **Gọi API**: Luôn qua api-gateway:3000, không gọi trực tiếp vào service
-**Tính năng cần**: Trang sản phẩm (SSR/ISR cho SEO), Cart (client state), Checkout, Order history
+**Pages**:
+- `/` — Homepage SSR, featured products ISR 60s
+- `/products` — Product listing với search, filter category, paginate (SSR)
+- `/products/[slug]` — Product detail client component (fetch qua API)
+- `/cart` — Giỏ hàng (client, CartContext + localStorage)
+- `/checkout` — Đặt hàng (form địa chỉ + phương thức thanh toán)
+- `/checkout/payment` — Trang QR code thanh toán demo
+- `/payment-callback` — Kết quả thanh toán
+- `/orders` — Lịch sử đơn hàng (protected)
+- `/orders/[id]` — Chi tiết đơn hàng (protected)
+- `/login`, `/register` — Auth forms
+- `/profile` — Thông tin cá nhân
+**Đặc điểm quan trọng**:
+- AuthContext: JWT lưu localStorage, auto-refresh 401, `register()` + `setUser()` exposed
+- CartContext: `ecom_cart` localStorage persistence
+- API_URL (server-side SSR) vs NEXT_PUBLIC_API_URL (client-side browser)
+- QR code hiển thị dưới dạng base64 `<img>` (từ payment-service)
+- "Auto approve" button gọi `POST /payments/auto-approve/:ref` để demo thanh toán
+- Docker: development target (npm run dev), production target (next build)
 
 ## Database design
 
