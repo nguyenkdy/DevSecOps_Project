@@ -2,7 +2,7 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 COPY . .
 RUN npm run build
 
@@ -12,7 +12,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 # Chỉ cài production dependencies → image nhỏ hơn ~60%
 COPY package*.json ./
-RUN npm install --omit=dev && npm cache clean --force
+RUN npm install --legacy-peer-deps --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
 # Chạy với user non-root để bảo mật
 USER node
