@@ -46,6 +46,7 @@ export class CreatePaymentLogs1700000002001 implements MigrationInterface {
           },
         ],
       }),
+      true, // ifNotExist
     );
 
     // Index để query nhanh theo transactionId và orderId

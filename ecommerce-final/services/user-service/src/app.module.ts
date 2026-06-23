@@ -25,8 +25,7 @@ import { Address } from './users/entities/address.entity';
         password: config.get('database.password'),
         database: config.get('database.name'),
         entities: [User, Address],
-        // synchronize chỉ bật khi dev/test. Production dùng migrations.
-        synchronize: config.get('nodeEnv') !== 'production',
+        synchronize: false,
         logging: config.get('nodeEnv') === 'development',
       }),
     }),

@@ -24,7 +24,7 @@ import { PaymentLog } from './payments/entities/payment-log.entity';
         password: config.get('database.password'),
         database: config.get('database.name'),
         entities: [Transaction, PaymentLog],
-        synchronize: config.get('nodeEnv') !== 'production',
+        synchronize: false,
         logging: config.get('nodeEnv') === 'development',
       }),
     }),

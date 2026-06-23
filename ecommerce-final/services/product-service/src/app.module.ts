@@ -21,7 +21,7 @@ import { Category } from './categories/entities/category.entity';
         password: config.get('database.password'),
         database: config.get('database.name'),
         entities: [Product, Category],
-        synchronize: config.get('nodeEnv') !== 'production',
+        synchronize: false,
         logging: config.get('nodeEnv') === 'development',
       }),
     }),

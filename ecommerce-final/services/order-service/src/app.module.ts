@@ -34,8 +34,7 @@ import { OrderItem } from './orders/entities/order-item.entity';
         password: config.get('database.password'),
         database: config.get('database.name'),
         entities: [Order, OrderItem],
-        // synchronize chỉ bật khi dev/test. Production dùng migrations.
-        synchronize: config.get('nodeEnv') !== 'production',
+        synchronize: false,
         logging: config.get('nodeEnv') === 'development',
       }),
     }),

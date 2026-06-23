@@ -57,6 +57,9 @@ export class CreateProductsCategoriesFts1700000000000 implements MigrationInterf
       )
     `);
 
+    // Thêm cột search_vector nếu chưa có (trường hợp synchronize tạo bảng trước migration)
+    await qr.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS search_vector TSVECTOR`);
+
     // GIN index cho full-text search
     await qr.query(`
       CREATE INDEX IF NOT EXISTS idx_products_search_vector
