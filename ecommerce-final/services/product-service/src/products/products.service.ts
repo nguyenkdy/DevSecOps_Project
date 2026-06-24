@@ -95,9 +95,14 @@ export class ProductsService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async findBySlug(slug: string): Promise<Product> {
+  async findBySlug(slugOrId: string): Promise<Product> {
+    // Order-service gọi bằng UUID, frontend gọi bằng slug
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOrId);
+    if (isUuid) {
+      return this.findById(slugOrId);
+    }
     const product = await this.productRepo.findOne({
-      where: { slug, isActive: true },
+      where: { slug: slugOrId, isActive: true },
       relations: ['category'],
     });
     if (!product) {
