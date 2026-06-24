@@ -1,9 +1,9 @@
-import { IsUUID, IsInt, Min, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsUUID, IsInt, Min, IsArray, ValidateNested,
+  IsString, IsOptional,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
-/**
- * Item trong checkout request
- */
 export class CheckoutItemDto {
   @IsUUID()
   productId: string;
@@ -13,20 +13,24 @@ export class CheckoutItemDto {
   quantity: number;
 }
 
-/**
- * Địa chỉ giao hàng trong checkout
- */
 export class ShippingAddressDto {
+  @IsString()
   street: string;
+
+  @IsString()
   ward: string;
+
+  @IsString()
   district: string;
+
+  @IsString()
   city: string;
-  zipCode: string;
+
+  @IsOptional()
+  @IsString()
+  zipCode?: string;
 }
 
-/**
- * Checkout request DTO
- */
 export class CreateCheckoutDto {
   @IsArray()
   @ValidateNested({ each: true })
@@ -37,5 +41,7 @@ export class CreateCheckoutDto {
   @Type(() => ShippingAddressDto)
   shippingAddress: ShippingAddressDto;
 
-  paymentMethod?: string; // vnpay, momo, cod
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
 }
