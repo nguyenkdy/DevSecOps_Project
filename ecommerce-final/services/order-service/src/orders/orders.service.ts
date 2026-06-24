@@ -134,6 +134,7 @@ export class OrdersService {
       userId,
       totalAmount,
       createdAt: savedOrder.createdAt.toISOString(),
+      paymentMethod: dto.paymentMethod,
     });
 
     // Step 6: Clear cart từ Redis

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { ordersApi, walletApi } from '@/lib/api';
+import { ordersApi, walletApi, paymentsApi } from '@/lib/api';
 import { formatVND } from '@/lib/utils';
 import { Alert } from '@/components/ui/Alert';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -85,8 +85,13 @@ export default function CheckoutPage() {
       if (paymentMethod === 'momo') {
         // MoMo → trang QR (cart sẽ được xóa sau khi quét QR thành công)
         router.push(`/checkout/payment?orderId=${order.id}&amount=${order.totalAmount}&method=momo`);
+      } else if (paymentMethod === 'ecompay') {
+        // EcomPay → trừ ví ngay, rồi vào đơn hàng
+        await paymentsApi.initPayment({ orderId: order.id, amount: order.totalAmount, paymentMethod: 'ecompay' });
+        clearCart();
+        router.push(`/orders/${order.id}?success=1`);
       } else {
-        // EcomPay (instant) hoặc COD → xóa cart và vào đơn hàng
+        // COD → xóa cart và vào đơn hàng
         clearCart();
         router.push(`/orders/${order.id}?success=1`);
       }

@@ -129,7 +129,7 @@ export default function OrderDetailPage() {
               <span className="text-gray-500">Phương thức</span>
               <span className="font-medium">
                 {{
-                  vnpay: '💳 VNPay',
+                  ecompay: '💰 EcomPay',
                   momo: '💜 MoMo',
                   cod: '💵 Tiền mặt',
                 }[order.paymentMethod] ?? order.paymentMethod}

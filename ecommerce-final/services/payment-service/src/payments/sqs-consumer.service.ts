@@ -18,6 +18,7 @@ interface OrderCreatedEvent {
   userId: string;
   totalAmount: number;
   createdAt: string;
+  paymentMethod?: string;
 }
 
 /**
@@ -135,12 +136,20 @@ export class SqsConsumerService implements OnApplicationBootstrap, OnApplication
         return;
       }
 
-      // Tạo transaction mới với status pending
+      // EcomPay được xử lý bởi frontend khi gọi POST /payments/init — bỏ qua ở đây
+      if (event.paymentMethod === 'ecompay') {
+        this.logger.log(`[SQS] EcomPay order ${event.orderId} — frontend tự xử lý`);
+        await this.deleteMessage(receiptHandle);
+        return;
+      }
+
+      // Tạo transaction pending cho MoMo/COD
+      const method = event.paymentMethod === 'cod' ? PaymentMethod.COD : PaymentMethod.MOMO;
       await this.paymentService.initPaymentFromEvent(
         event.orderId,
         event.userId,
         event.totalAmount,
-        PaymentMethod.ECOMPAY,
+        method,
       );
 
       this.logger.log(`[SQS] Tạo transaction thành công cho order ${event.orderId}`);

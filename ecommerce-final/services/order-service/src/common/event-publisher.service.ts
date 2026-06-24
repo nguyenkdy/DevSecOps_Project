@@ -7,6 +7,7 @@ export interface OrderCreatedEvent {
   userId: string;
   totalAmount: number;
   createdAt: string;
+  paymentMethod?: string;
 }
 
 /**
