@@ -25,7 +25,7 @@ export class Product {
   categoryId: string | null;
 
   @ManyToOne(() => Category, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'categoryId' })
+  @JoinColumn({ name: 'category_id' })
   category: Category | null;
 
   @Column({ type: 'varchar', length: 255 })

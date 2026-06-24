@@ -22,7 +22,7 @@ export class Category {
   parentId: string | null;
 
   @ManyToOne(() => Category, (c) => c.children, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'parentId' })
+  @JoinColumn({ name: 'parent_id' })
   parent: Category | null;
 
   @OneToMany(() => Category, (c) => c.parent)
