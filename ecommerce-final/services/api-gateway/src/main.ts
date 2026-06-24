@@ -56,6 +56,10 @@ async function bootstrap() {
   app.use(createJwtMiddleware(jwtService));
 
   // ─── Proxy middlewares ──────────────────────────────────────────────────────
+  // QUAN TRỌNG: dùng pathFilter thay vì app.use(path, proxy).
+  // app.use(path, proxy) khiến Express strip prefix trước khi truyền cho proxy,
+  // ví dụ /api/v1/auth/register → /register, làm downstream service trả 404.
+  // pathFilter giữ nguyên full path khi forward.
   const services = config.get<any>('services');
 
   function makeProxy(target: string, label: string): Options {
@@ -83,19 +87,28 @@ async function bootstrap() {
   }
 
   // User Service — auth + users
-  app.use('/api/v1/auth', createProxyMiddleware(makeProxy(services.userService, 'user-service')));
-  app.use('/api/v1/users', createProxyMiddleware(makeProxy(services.userService, 'user-service')));
+  app.use(createProxyMiddleware({
+    ...makeProxy(services.userService, 'user-service'),
+    pathFilter: ['/api/v1/auth/**', '/api/v1/users/**'],
+  }));
 
   // Product Service — catalog + categories
-  app.use('/api/v1/products', createProxyMiddleware(makeProxy(services.productService, 'product-service')));
-  app.use('/api/v1/categories', createProxyMiddleware(makeProxy(services.productService, 'product-service')));
+  app.use(createProxyMiddleware({
+    ...makeProxy(services.productService, 'product-service'),
+    pathFilter: ['/api/v1/products/**', '/api/v1/categories/**'],
+  }));
 
   // Order Service — cart + orders
-  app.use('/api/v1/cart', createProxyMiddleware(makeProxy(services.orderService, 'order-service')));
-  app.use('/api/v1/orders', createProxyMiddleware(makeProxy(services.orderService, 'order-service')));
+  app.use(createProxyMiddleware({
+    ...makeProxy(services.orderService, 'order-service'),
+    pathFilter: ['/api/v1/cart/**', '/api/v1/orders/**'],
+  }));
 
   // Payment Service
-  app.use('/api/v1/payments', createProxyMiddleware(makeProxy(services.paymentService, 'payment-service')));
+  app.use(createProxyMiddleware({
+    ...makeProxy(services.paymentService, 'payment-service'),
+    pathFilter: ['/api/v1/payments/**'],
+  }));
 
   // ─── NestJS routes (health) ─────────────────────────────────────────────────
   app.setGlobalPrefix('api/v1');
