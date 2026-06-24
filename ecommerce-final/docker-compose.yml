@@ -186,8 +186,8 @@ services:
       NEXT_TELEMETRY_DISABLED: 1
       # Server-side fetch (SSR) gọi trực tiếp vào api-gateway qua Docker network
       API_URL: http://api-gateway:3000
-      # Client-side fetch qua browser → localhost
-      NEXT_PUBLIC_API_URL: http://localhost:3000
+      # Client-side fetch qua browser → dùng HOST_IP nếu truy cập từ máy khác (mặc định localhost)
+      NEXT_PUBLIC_API_URL: ${HOST_IP:-http://localhost:3000}
     volumes:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
