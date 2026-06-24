@@ -21,7 +21,7 @@ async function getProducts(params: SearchParams) {
     });
     if (!res.ok) return { data: [], total: 0, totalPages: 0, page: 1 };
     const json = await res.json();
-    return json.data ?? { data: [], total: 0, totalPages: 0, page: 1 };
+    return json ?? { data: [], total: 0, totalPages: 0, page: 1 };
   } catch {
     return { data: [], total: 0, totalPages: 0, page: 1 };
   }
@@ -33,7 +33,7 @@ async function getCategories(): Promise<Category[]> {
     const res = await fetch(`${baseUrl}/api/v1/categories`, { next: { revalidate: 300 } });
     if (!res.ok) return [];
     const json = await res.json();
-    return json.data ?? [];
+    return Array.isArray(json) ? json : (json.data ?? []);
   } catch {
     return [];
   }

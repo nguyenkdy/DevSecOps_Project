@@ -9,8 +9,8 @@ async function getFeaturedProducts(): Promise<Product[]> {
       next: { revalidate: 60 }, // ISR: revalidate sau 60 giây
     });
     if (!res.ok) return [];
-    const json: { data: ProductListResponse } = await res.json();
-    return json.data?.data ?? [];
+    const json = await res.json();
+    return json.data ?? [];
   } catch {
     return [];
   }
