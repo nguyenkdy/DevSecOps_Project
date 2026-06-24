@@ -73,7 +73,7 @@ export class ProductsController {
     return this.productsService.uploadImage(id, file);
   }
 
-  @Delete(':id/images/:key(*)')
+  @Delete(':id/images/:key(*path)')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteImage(
