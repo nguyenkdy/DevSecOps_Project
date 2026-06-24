@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,11 +17,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  if (isAuthenticated) {
-    const redirect = searchParams.get('redirect') ?? '/';
-    router.replace(redirect);
-    return null;
-  }
+  useEffect(() => {
+    if (isAuthenticated) {
+      const redirect = searchParams.get('redirect') ?? '/';
+      router.replace(redirect);
+    }
+  }, [isAuthenticated, router, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
