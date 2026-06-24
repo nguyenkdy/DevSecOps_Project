@@ -40,4 +40,18 @@ export class UsersController {
   addAddress(@CurrentUser('userId') userId: string, @Body() dto: CreateAddressDto) {
     return this.usersService.addAddress(userId, dto);
   }
+
+  @Get('me/wallet')
+  async getWallet(@CurrentUser('userId') userId: string) {
+    const balance = await this.usersService.getWalletBalance(userId);
+    return { balance };
+  }
+
+  /** Nạp tiền demo — mỗi lần nạp 500,000 VND */
+  @Post('me/wallet/topup')
+  @HttpCode(HttpStatus.OK)
+  async topUpWallet(@CurrentUser('userId') userId: string) {
+    const balance = await this.usersService.topUpWallet(userId, 500_000);
+    return { balance };
+  }
 }

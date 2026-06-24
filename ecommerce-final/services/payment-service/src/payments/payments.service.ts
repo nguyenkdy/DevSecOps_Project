@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -34,8 +34,9 @@ export class PaymentService {
   }
 
   /**
-   * Khởi tạo thanh toán từ API (client gọi trực tiếp)
-   * Trả về QR code giả + payment URL giả để demo
+   * Khởi tạo thanh toán từ API (client gọi trực tiếp).
+   * EcomPay: trừ ví ngay, trả về SUCCESS luôn (không QR).
+   * MoMo: tạo QR giả như cũ.
    */
   async initPayment(
     orderId: string,
@@ -43,6 +44,10 @@ export class PaymentService {
     amount: number,
     method: PaymentMethod,
   ) {
+    if (method === PaymentMethod.ECOMPAY) {
+      return this.processEcomPay(orderId, userId, amount);
+    }
+
     const { transaction, paymentRef, qrCode, paymentUrl } =
       await this.createTransaction(orderId, userId, amount, method);
 
@@ -59,8 +64,8 @@ export class PaymentService {
     return {
       transactionId: transaction.id,
       paymentRef,
-      qrCode,       // Base64 PNG — hiển thị trực tiếp trên UI
-      paymentUrl,   // Fake URL — redirect demo
+      qrCode,
+      paymentUrl,
       amount,
       status: transaction.status,
     };
@@ -178,6 +183,71 @@ export class PaymentService {
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
+
+  /**
+   * EcomPay: gọi user-service để trừ ví, tạo transaction SUCCESS ngay lập tức.
+   */
+  private async processEcomPay(orderId: string, userId: string, amount: number) {
+    const userServiceUrl = this.configService.get<string>('userServiceUrl') ?? 'http://user-service:3001';
+
+    const deductRes = await fetch(
+      `${userServiceUrl}/api/v1/internal/users/${userId}/wallet/deduct`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount }),
+      },
+    );
+
+    if (!deductRes.ok) {
+      const err = await deductRes.json().catch(() => ({}));
+      throw new BadRequestException(err.message ?? 'Số dư ví không đủ để thanh toán');
+    }
+
+    const paymentRef = `ECOM-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+
+    const transaction = this.transactionRepo.create({
+      orderId,
+      userId,
+      amount,
+      status: PaymentStatus.SUCCESS,
+      paymentMethod: PaymentMethod.ECOMPAY,
+      paymentRef,
+      qrCode: null,
+      paymentUrl: null,
+      metadata: { ecompay: true },
+    });
+
+    await this.transactionRepo.save(transaction);
+
+    await this.addLog({
+      transactionId: transaction.id,
+      orderId,
+      userId,
+      event: PaymentEvent.PAYMENT_INITIATED,
+      payload: { paymentRef, method: 'ecompay', amount },
+    });
+    await this.addLog({
+      transactionId: transaction.id,
+      orderId,
+      userId,
+      event: PaymentEvent.PAYMENT_SUCCESS,
+      payload: { paymentRef, source: 'ecompay-wallet' },
+    });
+
+    await this.publishOrderPaid(orderId, userId, amount, paymentRef);
+
+    this.logger.log(`[EcomPay] Thanh toán thành công order ${orderId}: ${paymentRef}`);
+
+    return {
+      transactionId: transaction.id,
+      paymentRef,
+      qrCode: null,
+      paymentUrl: null,
+      amount,
+      status: PaymentStatus.SUCCESS,
+    };
+  }
 
   /**
    * Tạo Transaction + fake QR code + fake payment URL

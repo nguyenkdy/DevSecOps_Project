@@ -10,7 +10,7 @@ export enum PaymentStatus {
 }
 
 export enum PaymentMethod {
-  VNPAY = 'vnpay',
+  ECOMPAY = 'ecompay',
   MOMO = 'momo',
   COD = 'cod',
 }
@@ -39,7 +39,7 @@ export class Transaction {
   @Column({
     type: 'varchar',
     length: '20',
-    default: PaymentMethod.VNPAY,
+    default: PaymentMethod.ECOMPAY,
   })
   paymentMethod: PaymentMethod;
 

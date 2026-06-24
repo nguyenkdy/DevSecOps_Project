@@ -37,10 +37,31 @@ async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T>
     if (token) reqHeaders['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${getBaseUrl()}${path}`, {
+  let res = await fetch(`${getBaseUrl()}${path}`, {
     headers: reqHeaders,
     ...rest,
   });
+
+  // Auto-refresh khi token hết hạn
+  if (res.status === 401 && auth && typeof window !== 'undefined') {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (refreshToken) {
+      try {
+        const refreshRes = await fetch(`${getBaseUrl()}/api/v1/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+        if (refreshRes.ok) {
+          const tokens = await refreshRes.json();
+          localStorage.setItem('accessToken', tokens.accessToken);
+          localStorage.setItem('refreshToken', tokens.refreshToken);
+          reqHeaders['Authorization'] = `Bearer ${tokens.accessToken}`;
+          res = await fetch(`${getBaseUrl()}${path}`, { headers: reqHeaders, ...rest });
+        }
+      } catch { /* fall through to error handler */ }
+    }
+  }
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: 'Lỗi không xác định' }));
@@ -138,6 +159,13 @@ export const ordersApi = {
     apiFetch<any>(`/api/v1/orders?page=${page}&limit=${limit}`),
 
   getById: (id: string) => apiFetch<any>(`/api/v1/orders/${id}`),
+};
+
+// ─── Wallet ───────────────────────────────────────────────────────────────────
+
+export const walletApi = {
+  getBalance: () => apiFetch<{ balance: number }>('/api/v1/users/me/wallet'),
+  topUp: () => apiFetch<{ balance: number }>('/api/v1/users/me/wallet/topup', { method: 'POST' }),
 };
 
 // ─── Payments ─────────────────────────────────────────────────────────────────

@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { ordersApi } from '@/lib/api';
+import { ordersApi, walletApi } from '@/lib/api';
 import { formatVND } from '@/lib/utils';
 import { Alert } from '@/components/ui/Alert';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -17,7 +17,9 @@ export default function CheckoutPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'vnpay' | 'momo' | 'cod'>('vnpay');
+  const [paymentMethod, setPaymentMethod] = useState<'ecompay' | 'momo' | 'cod'>('ecompay');
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [toppingUp, setToppingUp] = useState(false);
 
   const [address, setAddress] = useState({
     street: '',
@@ -26,6 +28,22 @@ export default function CheckoutPage() {
     city: '',
     zipCode: '',
   });
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      walletApi.getBalance().then((r) => setWalletBalance(r.balance)).catch(() => {});
+    }
+  }, [isAuthenticated]);
+
+  const handleTopUp = async () => {
+    setToppingUp(true);
+    try {
+      const r = await walletApi.topUp();
+      setWalletBalance(r.balance);
+    } finally {
+      setToppingUp(false);
+    }
+  };
 
   if (!isAuthenticated) {
     return (
@@ -64,11 +82,11 @@ export default function CheckoutPage() {
         paymentMethod,
       });
 
-      // Nếu thanh toán online → chuyển sang trang thanh toán
-      if (paymentMethod !== 'cod') {
-        router.push(`/checkout/payment?orderId=${order.id}&amount=${order.totalAmount}`);
+      if (paymentMethod === 'momo') {
+        // MoMo → trang QR
+        router.push(`/checkout/payment?orderId=${order.id}&amount=${order.totalAmount}&method=momo`);
       } else {
-        // COD → chuyển thẳng sang trang đơn hàng
+        // EcomPay (instant) hoặc COD → thẳng đến đơn hàng
         router.push(`/orders/${order.id}?success=1`);
       }
     } catch (err: any) {
@@ -143,33 +161,88 @@ export default function CheckoutPage() {
             <div className="card p-5">
               <h2 className="font-semibold text-gray-900 mb-4">Phương thức thanh toán</h2>
               <div className="space-y-2">
-                {[
-                  { value: 'vnpay', label: '💳 VNPay', desc: 'Thanh toán qua QR code (demo)' },
-                  { value: 'momo', label: '💜 MoMo', desc: 'Thanh toán qua ví MoMo (demo)' },
-                  { value: 'cod', label: '💵 Tiền mặt khi nhận hàng', desc: 'Thanh toán khi giao hàng' },
-                ].map((m) => (
-                  <label
-                    key={m.value}
-                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                      paymentMethod === m.value
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:bg-gray-50'
-                    }`}
+                {/* EcomPay */}
+                <label
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    paymentMethod === 'ecompay'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="payment"
+                    value="ecompay"
+                    checked={paymentMethod === 'ecompay'}
+                    onChange={() => setPaymentMethod('ecompay')}
+                    className="text-blue-600"
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">💰 EcomPay — Ví điện tử</p>
+                    <p className="text-xs text-gray-500">
+                      Thanh toán ngay từ số dư ví •{' '}
+                      {walletBalance !== null ? (
+                        <span className={walletBalance >= totalPrice ? 'text-green-600' : 'text-red-500'}>
+                          Số dư: {formatVND(walletBalance)}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">Đang tải...</span>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleTopUp}
+                    disabled={toppingUp}
+                    className="text-xs text-blue-600 hover:underline shrink-0"
                   >
-                    <input
-                      type="radio"
-                      name="payment"
-                      value={m.value}
-                      checked={paymentMethod === m.value as any}
-                      onChange={() => setPaymentMethod(m.value as any)}
-                      className="text-blue-600"
-                    />
-                    <div>
-                      <p className="font-medium text-sm">{m.label}</p>
-                      <p className="text-xs text-gray-500">{m.desc}</p>
-                    </div>
-                  </label>
-                ))}
+                    {toppingUp ? '...' : '+ Nạp 500K'}
+                  </button>
+                </label>
+
+                {/* MoMo */}
+                <label
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    paymentMethod === 'momo'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="payment"
+                    value="momo"
+                    checked={paymentMethod === 'momo'}
+                    onChange={() => setPaymentMethod('momo')}
+                    className="text-blue-600"
+                  />
+                  <div>
+                    <p className="font-medium text-sm">💜 MoMo</p>
+                    <p className="text-xs text-gray-500">Thanh toán qua ví MoMo (demo QR)</p>
+                  </div>
+                </label>
+
+                {/* COD */}
+                <label
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    paymentMethod === 'cod'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="payment"
+                    value="cod"
+                    checked={paymentMethod === 'cod'}
+                    onChange={() => setPaymentMethod('cod')}
+                    className="text-blue-600"
+                  />
+                  <div>
+                    <p className="font-medium text-sm">💵 Tiền mặt khi nhận hàng</p>
+                    <p className="text-xs text-gray-500">Thanh toán khi giao hàng</p>
+                  </div>
+                </label>
               </div>
             </div>
           </div>
@@ -207,7 +280,11 @@ export default function CheckoutPage() {
                 className="btn-primary w-full mt-3 flex items-center justify-center gap-2"
               >
                 {loading && <LoadingSpinner className="w-4 h-4" />}
-                {paymentMethod === 'cod' ? 'Xác nhận đặt hàng' : 'Tiến hành thanh toán'}
+                {paymentMethod === 'ecompay'
+                ? 'Thanh toán bằng EcomPay'
+                : paymentMethod === 'cod'
+                ? 'Xác nhận đặt hàng'
+                : 'Tiến hành thanh toán'}
               </button>
             </div>
           </div>

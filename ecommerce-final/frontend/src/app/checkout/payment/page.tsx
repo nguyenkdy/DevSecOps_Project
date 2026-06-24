@@ -15,6 +15,7 @@ export default function PaymentPage() {
 
   const orderId = searchParams.get('orderId') ?? '';
   const amount = Number(searchParams.get('amount') ?? 0);
+  const method = searchParams.get('method') ?? 'momo';
 
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState(false);
@@ -33,7 +34,7 @@ export default function PaymentPage() {
     }
 
     paymentsApi
-      .initPayment({ orderId, amount, paymentMethod: 'vnpay' })
+      .initPayment({ orderId, amount, paymentMethod: method })
       .then((data: any) => setPayment(data))
       .catch(() => setError('Không thể khởi tạo thanh toán'))
       .finally(() => setLoading(false));
@@ -68,7 +69,7 @@ export default function PaymentPage() {
             {/* QR Code */}
             <div className="bg-gray-50 rounded-xl p-4 mb-6 inline-block">
               <p className="text-xs text-gray-500 mb-3">
-                Quét mã QR để thanh toán (demo)
+                Quét mã QR {method === 'momo' ? 'MoMo' : ''} để thanh toán (demo)
               </p>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img

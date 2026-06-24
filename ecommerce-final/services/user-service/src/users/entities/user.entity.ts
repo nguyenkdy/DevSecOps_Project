@@ -39,6 +39,9 @@ export class User {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
+  @Column({ type: 'bigint', default: 0 })
+  walletBalance: number;
+
   @OneToMany(() => Address, (address) => address.user)
   addresses: Address[];
 

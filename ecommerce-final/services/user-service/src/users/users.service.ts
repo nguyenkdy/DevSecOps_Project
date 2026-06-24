@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -88,6 +89,35 @@ export class UsersService {
     }
     const address = this.addressRepo.create({ ...dto, userId });
     return this.addressRepo.save(address);
+  }
+
+  async getWalletBalance(userId: string): Promise<number> {
+    const user = await this.findById(userId);
+    return Number(user.walletBalance);
+  }
+
+  async topUpWallet(userId: string, amount: number): Promise<number> {
+    await this.userRepo
+      .createQueryBuilder()
+      .update(User)
+      .set({ walletBalance: () => `"walletBalance" + ${amount}` })
+      .where('id = :id', { id: userId })
+      .execute();
+    return this.getWalletBalance(userId);
+  }
+
+  async deductWallet(userId: string, amount: number): Promise<number> {
+    const result = await this.userRepo
+      .createQueryBuilder()
+      .update(User)
+      .set({ walletBalance: () => `"walletBalance" - ${amount}` })
+      .where('id = :id AND "walletBalance" >= :amount', { id: userId, amount })
+      .execute();
+
+    if (result.affected === 0) {
+      throw new BadRequestException('Số dư ví không đủ để thanh toán');
+    }
+    return this.getWalletBalance(userId);
   }
 
   /** Loại bỏ passwordHash và field nhạy cảm trước khi trả về API. */
