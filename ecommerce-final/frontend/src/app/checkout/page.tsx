@@ -11,7 +11,7 @@ import { Alert } from '@/components/ui/Alert';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 export default function CheckoutPage() {
-  const { items, totalPrice, totalItems } = useCart();
+  const { items, totalPrice, totalItems, clearCart } = useCart();
   const { isAuthenticated } = useAuth();
   const router = useRouter();
 
@@ -83,10 +83,11 @@ export default function CheckoutPage() {
       });
 
       if (paymentMethod === 'momo') {
-        // MoMo → trang QR
+        // MoMo → trang QR (cart sẽ được xóa sau khi quét QR thành công)
         router.push(`/checkout/payment?orderId=${order.id}&amount=${order.totalAmount}&method=momo`);
       } else {
-        // EcomPay (instant) hoặc COD → thẳng đến đơn hàng
+        // EcomPay (instant) hoặc COD → xóa cart và vào đơn hàng
+        clearCart();
         router.push(`/orders/${order.id}?success=1`);
       }
     } catch (err: any) {

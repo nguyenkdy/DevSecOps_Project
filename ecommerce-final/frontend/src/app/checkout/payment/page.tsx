@@ -38,7 +38,7 @@ export default function PaymentPage() {
       .then((data: any) => setPayment(data))
       .catch(() => setError('Không thể khởi tạo thanh toán'))
       .finally(() => setLoading(false));
-  }, [orderId, amount, router]);
+  }, [orderId, amount, method, router]);
 
   const handleAutoApprove = async () => {
     if (!payment) return;

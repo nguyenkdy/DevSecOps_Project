@@ -31,8 +31,11 @@ export default function OrdersPage() {
     setLoading(true);
     ordersApi.list(page)
       .then((res: any) => {
-        setOrders(res.data ?? []);
-        setTotalPages(res.totalPages ?? 0);
+        // apiFetch trả về array trực tiếp (đã extract .data), nhưng cũng handle trường hợp có wrapper
+        const list: Order[] = Array.isArray(res) ? res : (res.data ?? []);
+        const pages: number = Array.isArray(res) ? 0 : (res.totalPages ?? 0);
+        setOrders(list);
+        setTotalPages(pages);
       })
       .catch(() => setError('Không thể tải danh sách đơn hàng'))
       .finally(() => setLoading(false));
