@@ -140,7 +140,7 @@ export class SqsConsumerService implements OnApplicationBootstrap, OnApplication
         event.orderId,
         event.userId,
         event.totalAmount,
-        PaymentMethod.VNPAY,
+        PaymentMethod.ECOMPAY,
       );
 
       this.logger.log(`[SQS] Tạo transaction thành công cho order ${event.orderId}`);
