@@ -128,11 +128,11 @@ export default function OrderDetailPage() {
             <div className="flex justify-between">
               <span className="text-gray-500">Phương thức</span>
               <span className="font-medium">
-                {{
+                {order.paymentMethod && ({
                   ecompay: '💰 EcomPay',
                   momo: '💜 MoMo',
                   cod: '💵 Tiền mặt',
-                }[order.paymentMethod] ?? order.paymentMethod}
+                } as Record<string, string>)[order.paymentMethod] || order.paymentMethod || '—'}
               </span>
             </div>
             <div className="flex justify-between">
