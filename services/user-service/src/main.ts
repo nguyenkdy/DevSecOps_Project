@@ -29,5 +29,6 @@ async function bootstrap() {
   const port = config.get<number>('port') ?? 3001;
   await app.listen(port);
   logger.log(`User Service đang chạy tại http://localhost:${port}/api/v1`);
+  logger.log(`Môi trường: ${config.get('nodeEnv') ?? 'development'}`);
 }
 bootstrap();
