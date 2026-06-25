@@ -97,7 +97,7 @@ pipeline {
     stage('Build & Push ECR') {
       when {
         allOf {
-          branch 'main'
+          expression { env.GIT_BRANCH ==~ /.*\/main|^main$/ }
           not { environment name: 'SKIP', value: 'true' }
         }
       }
@@ -120,7 +120,7 @@ pipeline {
     stage('Update GitOps Manifest') {
       when {
         allOf {
-          branch 'main'
+          expression { env.GIT_BRANCH ==~ /.*\/main|^main$/ }
           not { environment name: 'SKIP', value: 'true' }
         }
       }
