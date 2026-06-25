@@ -20,7 +20,23 @@ pipeline {
       steps { checkout scm }
     }
 
+    stage('Detect Changes') {
+      steps {
+        script {
+          def files = []
+          currentBuild.changeSets.each { cs ->
+            cs.items.each { item -> item.affectedFiles.each { f -> files << f.path } }
+          }
+          if (files && !files.any { it.startsWith(env.SERVICE_DIR + '/') }) {
+            echo "No changes in ${env.SERVICE_DIR} — skipping pipeline"
+            env.SKIP = 'true'
+          }
+        }
+      }
+    }
+
     stage('Install') {
+      when { not { environment name: 'SKIP', value: 'true' } }
       steps {
         dir(env.SERVICE_DIR) {
           sh 'npm ci --legacy-peer-deps --prefer-offline --no-audit'
@@ -29,6 +45,7 @@ pipeline {
     }
 
     stage('Lint & Build') {
+      when { not { environment name: 'SKIP', value: 'true' } }
       parallel {
         stage('ESLint') {
           steps {
@@ -44,6 +61,7 @@ pipeline {
     }
 
     stage('Unit Test') {
+      when { not { environment name: 'SKIP', value: 'true' } }
       steps {
         dir(env.SERVICE_DIR) {
           sh 'npm run test:cov -- --ci --forceExit'
@@ -52,6 +70,7 @@ pipeline {
     }
 
     stage('SonarQube') {
+      when { not { environment name: 'SKIP', value: 'true' } }
       steps {
         dir(env.SERVICE_DIR) {
           withSonarQubeEnv('SonarQube') {
@@ -68,6 +87,7 @@ pipeline {
     }
 
     stage('Security Scan - Trivy') {
+      when { not { environment name: 'SKIP', value: 'true' } }
       steps {
         sh '''
           docker build -t ${SERVICE_NAME}:scan --target production ${SERVICE_DIR}
@@ -78,7 +98,12 @@ pipeline {
     }
 
     stage('Build & Push ECR') {
-      when { branch 'main' }
+      when {
+        allOf {
+          branch 'main'
+          not { environment name: 'SKIP', value: 'true' }
+        }
+      }
       steps {
         sh '''
           aws ecr get-login-password --region ${AWS_REGION} | \
@@ -96,7 +121,12 @@ pipeline {
     }
 
     stage('Update GitOps Manifest') {
-      when { branch 'main' }
+      when {
+        allOf {
+          branch 'main'
+          not { environment name: 'SKIP', value: 'true' }
+        }
+      }
       steps {
         sh '''
           sed -i "s|tag:.*|tag: ${IMAGE_TAG}|" infra/k8s/product-service/values.yaml
@@ -110,8 +140,16 @@ pipeline {
   }
 
   post {
+    always {
+      script {
+        if (env.SKIP == 'true') {
+          currentBuild.result = 'NOT_BUILT'
+          echo "Pipeline skipped — no changes in ${env.SERVICE_DIR}"
+        }
+      }
+      sh 'docker image prune -f || true'
+    }
     success { echo "Pipeline thành công: ${SERVICE_NAME}:${IMAGE_TAG}" }
     failure { echo "Pipeline thất bại — kiểm tra log" }
-    always  { sh 'docker image prune -f || true' }
   }
 }

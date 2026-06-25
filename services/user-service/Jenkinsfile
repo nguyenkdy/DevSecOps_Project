@@ -16,7 +16,28 @@ pipeline {
   }
 
   stages {
+    stage('Checkout') {
+      steps { checkout scm }
+    }
+
+    stage('Detect Changes') {
+      steps {
+        script {
+          def files = []
+          currentBuild.changeSets.each { cs ->
+            cs.items.each { item -> item.affectedFiles.each { f -> files << f.path } }
+          }
+          // Empty changeSets = manual trigger or first build → always build
+          if (files && !files.any { it.startsWith(env.SERVICE_DIR + '/') }) {
+            echo "No changes in ${env.SERVICE_DIR} — skipping pipeline"
+            env.SKIP = 'true'
+          }
+        }
+      }
+    }
+
     stage('Install') {
+      when { not { environment name: 'SKIP', value: 'true' } }
       steps {
         dir(env.SERVICE_DIR) {
           sh 'npm ci --legacy-peer-deps --prefer-offline --no-audit'
@@ -25,6 +46,7 @@ pipeline {
     }
 
     stage('Lint & Type check') {
+      when { not { environment name: 'SKIP', value: 'true' } }
       parallel {
         stage('ESLint') {
           steps {
@@ -40,6 +62,7 @@ pipeline {
     }
 
     stage('Unit Test') {
+      when { not { environment name: 'SKIP', value: 'true' } }
       steps {
         dir(env.SERVICE_DIR) {
           sh 'npm run test:cov -- --ci --forceExit'
@@ -48,9 +71,9 @@ pipeline {
     }
 
     stage('Integration Test') {
+      when { not { environment name: 'SKIP', value: 'true' } }
       steps {
         dir(env.SERVICE_DIR) {
-          // Spin up PostgreSQL + Redis tạm thời cho integration test
           sh '''
             docker run -d --name pg-ci -e POSTGRES_DB=user_db -e POSTGRES_PASSWORD=postgres -p 5433:5432 postgres:16-alpine
             docker run -d --name redis-ci -p 6380:6379 redis:7-alpine
@@ -67,6 +90,7 @@ pipeline {
     }
 
     stage('SonarQube') {
+      when { not { environment name: 'SKIP', value: 'true' } }
       steps {
         dir(env.SERVICE_DIR) {
           withSonarQubeEnv('SonarQube') {
@@ -82,10 +106,10 @@ pipeline {
       }
     }
 
-    stage('Security Scan') {
+    stage('Security Scan - Trivy') {
+      when { not { environment name: 'SKIP', value: 'true' } }
       steps {
         dir(env.SERVICE_DIR) {
-          // Trivy quét image sau khi build
           sh '''
             docker build -t ${SERVICE_NAME}:${IMAGE_TAG} --target production .
             trivy image --severity HIGH,CRITICAL --exit-code 0 ${SERVICE_NAME}:${IMAGE_TAG}
@@ -94,26 +118,39 @@ pipeline {
       }
     }
 
-    stage('Push to ECR') {
-      when { branch 'main' }
-      steps {
-        dir(env.SERVICE_DIR) {
-          sh '''
-            aws ecr get-login-password --region ap-southeast-1 | docker login --username AWS --password-stdin ${ECR_REGISTRY}
-            docker tag ${SERVICE_NAME}:${IMAGE_TAG} ${ECR_REGISTRY}/${SERVICE_NAME}:${IMAGE_TAG}
-            docker push ${ECR_REGISTRY}/${SERVICE_NAME}:${IMAGE_TAG}
-          '''
+    stage('Build & Push ECR') {
+      when {
+        allOf {
+          branch 'main'
+          not { environment name: 'SKIP', value: 'true' }
         }
+      }
+      steps {
+        sh '''
+          aws ecr get-login-password --region ${AWS_REGION} | \
+            docker login --username AWS --password-stdin ${ECR_REGISTRY}
+
+          docker build -t ${ECR_REGISTRY}/${SERVICE_NAME}:${IMAGE_TAG} \
+            --target production ${SERVICE_DIR}
+          docker tag ${ECR_REGISTRY}/${SERVICE_NAME}:${IMAGE_TAG} \
+            ${ECR_REGISTRY}/${SERVICE_NAME}:latest
+
+          docker push ${ECR_REGISTRY}/${SERVICE_NAME}:${IMAGE_TAG}
+          docker push ${ECR_REGISTRY}/${SERVICE_NAME}:latest
+        '''
       }
     }
 
-    stage('Update GitOps manifest') {
-      when { branch 'main' }
+    stage('Update GitOps Manifest') {
+      when {
+        allOf {
+          branch 'main'
+          not { environment name: 'SKIP', value: 'true' }
+        }
+      }
       steps {
-        // Cập nhật image tag trong Helm values → ArgoCD tự sync
         sh '''
-          cd infra/k8s
-          sed -i "s|tag:.*|tag: ${IMAGE_TAG}|" user-service/values.yaml
+          sed -i "s|tag:.*|tag: ${IMAGE_TAG}|" infra/k8s/user-service/values.yaml
           git config user.email "ci@jenkins"
           git config user.name "Jenkins CI"
           git commit -am "ci: update user-service to ${IMAGE_TAG}" || echo "no changes"
@@ -124,7 +161,16 @@ pipeline {
   }
 
   post {
-    success { echo "Pipeline thành công cho ${SERVICE_NAME}:${IMAGE_TAG}" }
+    always {
+      script {
+        if (env.SKIP == 'true') {
+          currentBuild.result = 'NOT_BUILT'
+          echo "Pipeline skipped — no changes in ${env.SERVICE_DIR}"
+        }
+      }
+      sh 'docker image prune -f || true'
+    }
+    success { echo "Pipeline thành công: ${SERVICE_NAME}:${IMAGE_TAG}" }
     failure { echo "Pipeline thất bại — kiểm tra log" }
   }
 }
