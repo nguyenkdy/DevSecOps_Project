@@ -76,6 +76,7 @@ export interface OrderItem {
   productId: string;
   productName: string;
   productSlug?: string;
+  imageUrl?: string;
   unitPrice: number;
   quantity: number;
 }
