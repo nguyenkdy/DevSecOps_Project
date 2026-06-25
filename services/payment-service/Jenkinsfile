@@ -49,16 +49,6 @@ pipeline {
           sh 'npm run test:cov -- --ci --forceExit'
         }
       }
-      post {
-        always {
-          publishHTML(target: [
-            allowMissing: true,
-            reportDir: "${env.SERVICE_DIR}/coverage/lcov-report",
-            reportFiles: 'index.html',
-            reportName: 'Payment Service Coverage'
-          ])
-        }
-      }
     }
 
     stage('SonarQube') {
