@@ -23,12 +23,17 @@ pipeline {
     stage('Detect Changes') {
       steps {
         script {
-          def files = []
-          currentBuild.changeSets.each { cs ->
-            cs.items.each { item -> item.affectedFiles.each { f -> files << f.path } }
+          def prev = env.GIT_PREVIOUS_COMMIT
+          if (!prev) {
+            echo "Không có previous commit — build toàn bộ"
+            return
           }
-          if (files && !files.any { it.startsWith(env.SERVICE_DIR + '/') }) {
-            echo "No changes in ${env.SERVICE_DIR} — skipping pipeline"
+          def changed = sh(
+            script: "git diff --name-only ${prev} ${env.GIT_COMMIT} | grep '^${env.SERVICE_DIR}/' || true",
+            returnStdout: true
+          ).trim()
+          if (!changed) {
+            echo "Không có thay đổi trong ${env.SERVICE_DIR} — bỏ qua pipeline"
             env.SKIP = 'true'
           }
         }
