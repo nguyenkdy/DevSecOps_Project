@@ -1,0 +1,14 @@
+# Copy file này thành terraform.tfvars và điền giá trị thực
+# terraform.tfvars đã được gitignore — KHÔNG commit file này lên GitHub
+
+aws_region             = "ap-southeast-1"
+project_name           = "ecommerce"
+eks_cluster_version    = "1.31"
+eks_node_instance_type = "t3.medium"
+eks_node_desired_size  = 2
+eks_node_min_size      = 1
+eks_node_max_size      = 3
+rds_instance_class     = "db.t3.micro"
+db_master_username     = "postgres"
+db_master_password     = "CHANGE_ME_STRONG_PASSWORD_HERE"
+s3_bucket_name         = "ecommerce-product-images-715923838470"

@@ -1,0 +1,25 @@
+# Terraform state — chứa toàn bộ trạng thái infra, không commit
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Biến nhạy cảm — tuyệt đối không commit
+terraform.tfvars
+*.tfvars.json
+
+# Thư mục cache providers
+.terraform/
+
+# Plan files
+*.tfplan
+*.tfplan.json
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Override files (local dev)
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
