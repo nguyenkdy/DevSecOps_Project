@@ -19,7 +19,7 @@ pipeline {
     stage('Install') {
       steps {
         dir(env.SERVICE_DIR) {
-          sh 'npm ci --prefer-offline --no-audit'
+          sh 'npm ci --legacy-peer-deps --prefer-offline --no-audit'
         }
       }
     }
