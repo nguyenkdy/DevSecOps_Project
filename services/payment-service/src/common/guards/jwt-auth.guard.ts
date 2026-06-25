@@ -20,7 +20,7 @@ export class JwtAuthGuard implements CanActivate {
       });
       request.user = { userId: payload.sub, email: payload.email, role: payload.role };
       return true;
-    } catch (error) {
+    } catch (_error) {
       throw new UnauthorizedException('Invalid token');
     }
   }
