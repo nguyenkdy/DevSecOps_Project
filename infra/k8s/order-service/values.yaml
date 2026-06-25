@@ -1,0 +1,39 @@
+replicaCount: 1
+
+image:
+  repository: 715923838470.dkr.ecr.ap-southeast-1.amazonaws.com/order-service
+  tag: latest
+
+service:
+  type: ClusterIP
+  port: 3003
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+config:
+  NODE_ENV: production
+  PORT: "3003"
+  DATABASE_HOST: "REPLACE_WITH_RDS_ENDPOINT"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: order_db
+  DATABASE_USER: postgres
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  PRODUCT_SERVICE_URL: "http://product-service:3002"
+  AWS_REGION: ap-southeast-1
+  SQS_ORDER_CREATED_URL: "REPLACE_WITH_SQS_URL"
+
+externalSecret:
+  enabled: false
+  secretPath: /ecommerce/order-service
+  keys:
+    - secretKey: DATABASE_PASSWORD
+      property: DATABASE_PASSWORD
+    - secretKey: JWT_ACCESS_SECRET
+      property: JWT_ACCESS_SECRET

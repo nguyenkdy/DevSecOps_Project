@@ -1,0 +1,37 @@
+replicaCount: 1
+
+image:
+  repository: 715923838470.dkr.ecr.ap-southeast-1.amazonaws.com/product-service
+  tag: latest
+
+service:
+  type: ClusterIP
+  port: 3002
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+config:
+  NODE_ENV: production
+  PORT: "3002"
+  DATABASE_HOST: "REPLACE_WITH_RDS_ENDPOINT"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: product_db
+  DATABASE_USER: postgres
+  AWS_REGION: ap-southeast-1
+  S3_BUCKET_NAME: "REPLACE_WITH_S3_BUCKET"
+  CLOUDFRONT_URL: "REPLACE_WITH_CLOUDFRONT_URL"
+
+externalSecret:
+  enabled: false
+  secretPath: /ecommerce/product-service
+  keys:
+    - secretKey: DATABASE_PASSWORD
+      property: DATABASE_PASSWORD
+    - secretKey: JWT_ACCESS_SECRET
+      property: JWT_ACCESS_SECRET

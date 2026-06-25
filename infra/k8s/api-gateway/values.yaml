@@ -1,0 +1,41 @@
+replicaCount: 1
+
+image:
+  repository: 715923838470.dkr.ecr.ap-southeast-1.amazonaws.com/api-gateway
+  tag: latest
+
+service:
+  type: ClusterIP
+  port: 3000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /api/v1/health
+  host: ""
+
+config:
+  NODE_ENV: production
+  PORT: "3000"
+  USER_SERVICE_URL: "http://user-service:3001"
+  PRODUCT_SERVICE_URL: "http://product-service:3002"
+  ORDER_SERVICE_URL: "http://order-service:3003"
+  PAYMENT_SERVICE_URL: "http://payment-service:3004"
+
+externalSecret:
+  enabled: false
+  secretPath: /ecommerce/api-gateway
+  keys:
+    - secretKey: JWT_ACCESS_SECRET
+      property: JWT_ACCESS_SECRET

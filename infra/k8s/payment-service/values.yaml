@@ -1,0 +1,37 @@
+replicaCount: 1
+
+image:
+  repository: 715923838470.dkr.ecr.ap-southeast-1.amazonaws.com/payment-service
+  tag: latest
+
+service:
+  type: ClusterIP
+  port: 3004
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+config:
+  NODE_ENV: production
+  PORT: "3004"
+  DATABASE_HOST: "REPLACE_WITH_RDS_ENDPOINT"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: payment_db
+  DATABASE_USER: postgres
+  AWS_REGION: ap-southeast-1
+  SQS_ORDER_CREATED_URL: "REPLACE_WITH_SQS_URL"
+  SNS_ORDER_PAID_TOPIC_ARN: "REPLACE_WITH_SNS_ARN"
+
+externalSecret:
+  enabled: false
+  secretPath: /ecommerce/payment-service
+  keys:
+    - secretKey: DATABASE_PASSWORD
+      property: DATABASE_PASSWORD
+    - secretKey: JWT_ACCESS_SECRET
+      property: JWT_ACCESS_SECRET
