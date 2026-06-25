@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { PaymentService } from '../payments.service';
-import { Transaction, PaymentStatus, PaymentMethod } from '../entities/transaction.entity';
-import { PaymentLog, PaymentEvent } from '../entities/payment-log.entity';
+import { PaymentService } from './payments.service';
+import { Transaction, PaymentStatus, PaymentMethod } from './entities/transaction.entity';
+import { PaymentLog, PaymentEvent } from './entities/payment-log.entity';
 import { ConfigService } from '@nestjs/config';
 
 const mockTransaction = (overrides: Partial<Transaction> = {}): Transaction =>
