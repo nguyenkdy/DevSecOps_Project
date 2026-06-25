@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { ProductCard } from '@/components/products/ProductCard';
 import type { Product, Category } from '@/lib/types';
 
@@ -67,7 +68,7 @@ export default async function ProductsPage({
             <h2 className="font-semibold text-gray-900 mb-3 text-sm">Danh mục</h2>
             <ul className="space-y-1">
               <li>
-                <a
+                <Link
                   href="/products"
                   className={`block px-3 py-1.5 rounded-lg text-sm transition-colors ${
                     !params.categoryId
@@ -76,11 +77,11 @@ export default async function ProductsPage({
                   }`}
                 >
                   Tất cả
-                </a>
+                </Link>
               </li>
               {categories.map((cat) => (
                 <li key={cat.id}>
-                  <a
+                  <Link
                     href={`/products?categoryId=${cat.id}${params.search ? `&search=${params.search}` : ''}`}
                     className={`block px-3 py-1.5 rounded-lg text-sm transition-colors ${
                       params.categoryId === cat.id
@@ -89,7 +90,7 @@ export default async function ProductsPage({
                     }`}
                   >
                     {cat.name}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
