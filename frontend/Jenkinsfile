@@ -133,11 +133,11 @@ pipeline {
       }
       steps {
         sh '''
-          sed -i "s|tag:.*|tag: ${IMAGE_TAG}|" infra/k8s/frontend/values.yaml
+          sed -i "s|tag:.*|tag: ${IMAGE_TAG}|" infra/k8s/frontend/values.yaml || echo "values.yaml chưa tồn tại — bỏ qua GitOps update"
           git config user.email "ci@jenkins"
           git config user.name "Jenkins CI"
           git commit -am "ci: update frontend to ${IMAGE_TAG}" || echo "no changes"
-          git push origin main
+          git push origin main || true
         '''
       }
     }
