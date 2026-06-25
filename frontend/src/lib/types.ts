@@ -62,7 +62,7 @@ export interface CartItem {
 
 export type OrderStatus = 'pending' | 'confirmed' | 'shipping' | 'delivered' | 'cancelled';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
-export type PaymentMethod = 'vnpay' | 'momo' | 'cod';
+export type PaymentMethod = 'ecompay' | 'momo' | 'cod';
 
 export interface ShippingAddress {
   street: string;
