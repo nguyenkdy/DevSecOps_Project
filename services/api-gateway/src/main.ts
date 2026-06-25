@@ -6,7 +6,7 @@ import { AppModule } from './app.module';
 import { createProxyMiddleware, Options } from 'http-proxy-middleware';
 import rateLimit from 'express-rate-limit';
 import { createJwtMiddleware } from './common/jwt.middleware';
-import { Request, Response } from 'express';
+import { Request } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -67,7 +67,7 @@ async function bootstrap() {
       target,
       changeOrigin: true,
       on: {
-        proxyReq: (proxyReq, req: any) => {
+        proxyReq: (proxyReq, _req: any) => {
           // Xóa hop-by-hop headers không cần forward
           proxyReq.removeHeader('x-forwarded-proto');
           // Thêm header nhận diện nguồn
