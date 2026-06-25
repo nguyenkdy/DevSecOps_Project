@@ -13,7 +13,7 @@ const mockTransaction = (overrides: Partial<Transaction> = {}): Transaction =>
     userId: 'user-001',
     amount: 150000,
     status: PaymentStatus.PENDING,
-    paymentMethod: PaymentMethod.VNPAY,
+    paymentMethod: PaymentMethod.MOMO,
     paymentRef: 'DEMO-123-ABC',
     qrCode: 'data:image/png;base64,fake',
     paymentUrl: 'https://sandbox.vnpayment.vn/paygate?vnp_TxnRef=DEMO-123-ABC',
@@ -80,7 +80,7 @@ describe('PaymentService', () => {
       txRepo.create.mockReturnValue(tx);
       txRepo.save.mockResolvedValue(tx);
 
-      const result = await service.initPayment('order-001', 'user-001', 150000, PaymentMethod.VNPAY);
+      const result = await service.initPayment('order-001', 'user-001', 150000, PaymentMethod.MOMO);
 
       expect(result).toHaveProperty('transactionId');
       expect(result).toHaveProperty('qrCode');
@@ -96,7 +96,7 @@ describe('PaymentService', () => {
       txRepo.create.mockReturnValue(tx);
       txRepo.save.mockResolvedValue(tx);
 
-      const result = await service.initPayment('order-001', 'user-001', 150000, PaymentMethod.VNPAY);
+      const result = await service.initPayment('order-001', 'user-001', 150000, PaymentMethod.MOMO);
 
       expect(result.qrCode).toMatch(/^data:image\/png;base64,/);
     });
@@ -106,7 +106,7 @@ describe('PaymentService', () => {
       txRepo.create.mockReturnValue(tx);
       txRepo.save.mockResolvedValue(tx);
 
-      await service.initPayment('order-001', 'user-001', 150000, PaymentMethod.VNPAY);
+      await service.initPayment('order-001', 'user-001', 150000, PaymentMethod.MOMO);
 
       expect(logRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({ event: PaymentEvent.PAYMENT_INITIATED }),
@@ -127,7 +127,7 @@ describe('PaymentService', () => {
         'order-001',
         'user-001',
         150000,
-        PaymentMethod.VNPAY,
+        PaymentMethod.MOMO,
       );
 
       expect(result).toHaveProperty('id');
