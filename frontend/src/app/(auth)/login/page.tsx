@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert } from '@/components/ui/Alert';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, isAuthenticated } = useAuth();
@@ -32,8 +32,8 @@ export default function LoginPage() {
       await login(email, password);
       const redirect = searchParams.get('redirect') ?? '/';
       router.push(redirect);
-    } catch (err: any) {
-      setError(err?.message ?? 'Email hoặc mật khẩu không đúng');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message ?? 'Email hoặc mật khẩu không đúng');
     } finally {
       setLoading(false);
     }
@@ -98,5 +98,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
