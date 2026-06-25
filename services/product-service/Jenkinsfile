@@ -2,8 +2,8 @@ pipeline {
   agent any
 
   environment {
-    SERVICE_NAME   = 'order-service'
-    SERVICE_DIR    = 'services/order-service'
+    SERVICE_NAME   = 'product-service'
+    SERVICE_DIR    = 'services/product-service'
     AWS_ACCOUNT_ID = credentials('aws-account-id')
     AWS_REGION     = 'ap-southeast-1'
     ECR_REGISTRY   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
@@ -55,7 +55,7 @@ pipeline {
             allowMissing: true,
             reportDir: "${env.SERVICE_DIR}/coverage/lcov-report",
             reportFiles: 'index.html',
-            reportName: 'Order Service Coverage'
+            reportName: 'Product Service Coverage'
           ])
         }
       }
@@ -67,7 +67,7 @@ pipeline {
           withSonarQubeEnv('SonarQube') {
             sh '''
               npx sonar-scanner \
-                -Dsonar.projectKey=order-service \
+                -Dsonar.projectKey=product-service \
                 -Dsonar.sources=src \
                 -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
                 -Dsonar.exclusions=**/*.spec.ts,**/*.module.ts
@@ -109,10 +109,10 @@ pipeline {
       when { branch 'main' }
       steps {
         sh '''
-          sed -i "s|tag:.*|tag: ${IMAGE_TAG}|" infra/k8s/order-service/values.yaml
+          sed -i "s|tag:.*|tag: ${IMAGE_TAG}|" infra/k8s/product-service/values.yaml
           git config user.email "ci@jenkins"
           git config user.name "Jenkins CI"
-          git commit -am "ci: update order-service to ${IMAGE_TAG}" || echo "no changes"
+          git commit -am "ci: update product-service to ${IMAGE_TAG}" || echo "no changes"
           git push origin main
         '''
       }

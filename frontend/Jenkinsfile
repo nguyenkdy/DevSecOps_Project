@@ -1,29 +1,111 @@
-stage('frontend') {
-  when {
-    changeset glob: 'frontend/**'
+pipeline {
+  agent any
+
+  environment {
+    SERVICE_NAME   = 'frontend'
+    SERVICE_DIR    = 'frontend'
+    AWS_ACCOUNT_ID = credentials('aws-account-id')
+    AWS_REGION     = 'ap-southeast-1'
+    ECR_REGISTRY   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+    IMAGE_TAG      = "${BUILD_NUMBER}-${env.GIT_COMMIT?.take(7) ?: 'latest'}"
   }
+
+  options {
+    timeout(time: 30, unit: 'MINUTES')
+    disableConcurrentBuilds()
+  }
+
   stages {
-    stage('Build Frontend') {
+    stage('Checkout') {
+      steps { checkout scm }
+    }
+
+    stage('Install') {
       steps {
-        dir('frontend') {
-          sh 'npm install'
-          sh 'npm run lint'
-          sh 'npm run build'
+        dir(env.SERVICE_DIR) {
+          sh 'npm ci --legacy-peer-deps --prefer-offline --no-audit'
         }
       }
     }
-    stage('Build Docker Image') {
-      steps {
-        sh 'docker build -t ecommerce-frontend:latest frontend'
+
+    stage('Lint & Build') {
+      parallel {
+        stage('ESLint') {
+          steps {
+            dir(env.SERVICE_DIR) { sh 'npm run lint' }
+          }
+        }
+        stage('Build') {
+          steps {
+            dir(env.SERVICE_DIR) {
+              // NEXT_PUBLIC_API_URL trỏ vào api-gateway khi build production
+              sh 'NEXT_PUBLIC_API_URL=http://api-gateway:3000 npm run build'
+            }
+          }
+        }
       }
     }
-    stage('Push to ECR') {
-      when { branch 'develop' }
+
+    stage('SonarQube') {
       steps {
-        sh 'aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY'
-        sh 'docker tag ecommerce-frontend:latest $ECR_REGISTRY/ecommerce-frontend:latest'
-        sh 'docker push $ECR_REGISTRY/ecommerce-frontend:latest'
+        dir(env.SERVICE_DIR) {
+          withSonarQubeEnv('SonarQube') {
+            sh '''
+              npx sonar-scanner \
+                -Dsonar.projectKey=frontend \
+                -Dsonar.sources=src \
+                -Dsonar.exclusions=**/*.test.tsx,**/.next/**,**/node_modules/**
+            '''
+          }
+        }
       }
     }
+
+    stage('Security Scan - Trivy') {
+      steps {
+        sh '''
+          docker build -t ${SERVICE_NAME}:scan --target production ${SERVICE_DIR}
+          trivy image --severity HIGH,CRITICAL --exit-code 0 --format table ${SERVICE_NAME}:scan
+          docker rmi ${SERVICE_NAME}:scan || true
+        '''
+      }
+    }
+
+    stage('Build & Push ECR') {
+      when { branch 'main' }
+      steps {
+        sh '''
+          aws ecr get-login-password --region ${AWS_REGION} | \
+            docker login --username AWS --password-stdin ${ECR_REGISTRY}
+
+          docker build -t ${ECR_REGISTRY}/${SERVICE_NAME}:${IMAGE_TAG} \
+            --target production ${SERVICE_DIR}
+          docker tag ${ECR_REGISTRY}/${SERVICE_NAME}:${IMAGE_TAG} \
+            ${ECR_REGISTRY}/${SERVICE_NAME}:latest
+
+          docker push ${ECR_REGISTRY}/${SERVICE_NAME}:${IMAGE_TAG}
+          docker push ${ECR_REGISTRY}/${SERVICE_NAME}:latest
+        '''
+      }
+    }
+
+    stage('Update GitOps Manifest') {
+      when { branch 'main' }
+      steps {
+        sh '''
+          sed -i "s|tag:.*|tag: ${IMAGE_TAG}|" infra/k8s/frontend/values.yaml
+          git config user.email "ci@jenkins"
+          git config user.name "Jenkins CI"
+          git commit -am "ci: update frontend to ${IMAGE_TAG}" || echo "no changes"
+          git push origin main
+        '''
+      }
+    }
+  }
+
+  post {
+    success { echo "Pipeline thành công: ${SERVICE_NAME}:${IMAGE_TAG}" }
+    failure { echo "Pipeline thất bại — kiểm tra log" }
+    always  { sh 'docker image prune -f || true' }
   }
 }
