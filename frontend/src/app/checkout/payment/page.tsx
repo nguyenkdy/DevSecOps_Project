@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { paymentsApi } from '@/lib/api';
 import { useCart } from '@/contexts/CartContext';
@@ -8,7 +8,7 @@ import { formatVND } from '@/lib/utils';
 import { PageLoading } from '@/components/ui/LoadingSpinner';
 import { Alert } from '@/components/ui/Alert';
 
-export default function PaymentPage() {
+function PaymentContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { clearCart } = useCart();
@@ -35,7 +35,7 @@ export default function PaymentPage() {
 
     paymentsApi
       .initPayment({ orderId, amount, paymentMethod: method })
-      .then((data: any) => setPayment(data))
+      .then((data: unknown) => setPayment(data as typeof payment))
       .catch(() => setError('Không thể khởi tạo thanh toán'))
       .finally(() => setLoading(false));
   }, [orderId, amount, method, router]);
@@ -66,7 +66,6 @@ export default function PaymentPage() {
 
         {payment && (
           <>
-            {/* QR Code */}
             <div className="bg-gray-50 rounded-xl p-4 mb-6 inline-block">
               <p className="text-xs text-gray-500 mb-3">
                 Quét mã QR {method === 'momo' ? 'MoMo' : ''} để thanh toán (demo)
@@ -82,7 +81,6 @@ export default function PaymentPage() {
               </p>
             </div>
 
-            {/* Demo info */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-5 text-left">
               <p className="text-xs font-semibold text-blue-800 mb-1">
                 🎮 Chế độ Demo
@@ -110,5 +108,13 @@ export default function PaymentPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PaymentPage() {
+  return (
+    <Suspense>
+      <PaymentContent />
+    </Suspense>
   );
 }
