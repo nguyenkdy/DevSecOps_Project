@@ -16,16 +16,20 @@ resources:
     cpu: 500m
     memory: 512Mi
 
+serviceAccount:
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::715923838470:role/ecommerce-product-service-role"
+
 config:
   NODE_ENV: production
   PORT: "3002"
-  DATABASE_HOST: "REPLACE_WITH_RDS_ENDPOINT"
+  DATABASE_HOST: "ecommerce-postgres.c7gyqes8qujb.ap-southeast-1.rds.amazonaws.com"
   DATABASE_PORT: "5432"
   DATABASE_NAME: product_db
   DATABASE_USER: postgres
   AWS_REGION: ap-southeast-1
-  S3_BUCKET_NAME: "REPLACE_WITH_S3_BUCKET"
-  CLOUDFRONT_URL: "REPLACE_WITH_CLOUDFRONT_URL"
+  S3_BUCKET_NAME: "ecommerce-product-images-715923838470"
+  CLOUDFRONT_URL: "https://d2sk3hc934h1p6.cloudfront.net"
 
 externalSecret:
   enabled: false

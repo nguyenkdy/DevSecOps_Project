@@ -28,7 +28,6 @@ ingress:
 config:
   NODE_ENV: production
   PORT: "3005"
-  # Server-side SSR gọi api-gateway qua K8s DNS
   API_URL: "http://api-gateway:3000"
-  # Client-side browser gọi qua ALB public URL — điền sau khi Terraform tạo ALB
+  # Điền sau khi api-gateway ALB được tạo — xem: kubectl get ingress -n ecommerce
   NEXT_PUBLIC_API_URL: "REPLACE_WITH_API_GATEWAY_ALB_URL"

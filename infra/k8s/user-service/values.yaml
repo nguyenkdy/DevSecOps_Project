@@ -16,17 +16,21 @@ resources:
     cpu: 500m
     memory: 512Mi
 
+serviceAccount:
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::715923838470:role/ecommerce-user-service-role"
+
 config:
   NODE_ENV: production
   PORT: "3001"
-  DATABASE_HOST: "REPLACE_WITH_RDS_ENDPOINT"
+  DATABASE_HOST: "ecommerce-postgres.c7gyqes8qujb.ap-southeast-1.rds.amazonaws.com"
   DATABASE_PORT: "5432"
   DATABASE_NAME: user_db
   DATABASE_USER: postgres
   REDIS_HOST: redis
   REDIS_PORT: "6379"
   AWS_REGION: ap-southeast-1
-  SNS_USER_REGISTERED_TOPIC_ARN: "REPLACE_WITH_SNS_ARN"
+  SNS_USER_REGISTERED_TOPIC_ARN: "arn:aws:sns:ap-southeast-1:715923838470:ecommerce-user-registered"
 
 externalSecret:
   enabled: false
