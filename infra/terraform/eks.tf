@@ -19,10 +19,9 @@ module "eks" {
   create_cloudwatch_log_group = false
 
   cluster_addons = {
-    coredns            = { most_recent = true }
-    kube-proxy         = { most_recent = true }
-    vpc-cni            = { most_recent = true }
-    aws-ebs-csi-driver = { most_recent = true }
+    coredns    = { most_recent = true }
+    kube-proxy = { most_recent = true }
+    vpc-cni    = { most_recent = true }
   }
 
   eks_managed_node_groups = {
