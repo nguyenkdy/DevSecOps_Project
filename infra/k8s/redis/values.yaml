@@ -16,6 +16,7 @@ resources:
     cpu: 200m
     memory: 256Mi
 
-storage:
+persistence:
+  enabled: false
   size: 1Gi
   storageClass: gp2

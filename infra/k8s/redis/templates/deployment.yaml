@@ -27,5 +27,4 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
       volumes:
         - name: redis-data
-          persistentVolumeClaim:
-            claimName: redis-data
+          emptyDir: {}
