@@ -21,22 +21,3 @@ resource "aws_sqs_queue" "order_created_dlq" {
 
   tags = { Name = "${var.project_name}-order-created-dlq" }
 }
-
-# Policy cho phép SNS publish vào queue (nếu cần fan-out sau này)
-resource "aws_sqs_queue_policy" "order_created" {
-  queue_url = aws_sqs_queue.order_created.id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { AWS = "*" }
-      Action    = "sqs:SendMessage"
-      Resource  = aws_sqs_queue.order_created.arn
-      Condition = {
-        ArnEquals = {
-          "aws:SourceAccount" = "715923838470"
-        }
-      }
-    }]
-  })
-}

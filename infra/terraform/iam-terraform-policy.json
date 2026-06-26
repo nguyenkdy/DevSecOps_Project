@@ -34,6 +34,8 @@
         "iam:GetPolicyVersion",
         "iam:ListPolicyVersions",
         "iam:ListPolicies",
+        "iam:TagPolicy",
+        "iam:UntagPolicy",
         "iam:CreateOpenIDConnectProvider",
         "iam:GetOpenIDConnectProvider",
         "iam:DeleteOpenIDConnectProvider",
@@ -41,7 +43,8 @@
         "iam:TagOpenIDConnectProvider",
         "iam:CreateServiceLinkedRole",
         "iam:GetUser",
-        "iam:ListRoles"
+        "iam:ListRoles",
+        "iam:ListInstanceProfilesForRole"
       ],
       "Resource": "*"
     },

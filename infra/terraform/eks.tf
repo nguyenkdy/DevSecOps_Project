@@ -10,6 +10,13 @@ module "eks" {
 
   cluster_endpoint_public_access = true
 
+  # Tắt KMS encryption — tránh cần quyền kms:TagResource, tiết kiệm $1/tháng
+  create_kms_key            = false
+  cluster_encryption_config = {}
+
+  # Tắt CloudWatch logging — tránh cần quyền logs:CreateLogGroup, tiết kiệm cost
+  cluster_enabled_log_types = []
+
   cluster_addons = {
     coredns            = { most_recent = true }
     kube-proxy         = { most_recent = true }
