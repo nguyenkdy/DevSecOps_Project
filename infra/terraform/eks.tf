@@ -15,7 +15,8 @@ module "eks" {
   cluster_encryption_config = {}
 
   # Tắt CloudWatch logging — tránh cần quyền logs:CreateLogGroup, tiết kiệm cost
-  cluster_enabled_log_types = []
+  cluster_enabled_log_types   = []
+  create_cloudwatch_log_group = false
 
   cluster_addons = {
     coredns            = { most_recent = true }
