@@ -6,50 +6,43 @@ module "eks" {
   cluster_version = var.eks_cluster_version
 
   vpc_id     = module.vpc.vpc_id
-  subnet_ids = module.vpc.private_subnets
+  subnet_ids = module.vpc.public_subnets  # Public subnet — không cần NAT
 
-  # Cho phép kubectl từ máy local truy cập cluster
   cluster_endpoint_public_access = true
 
-  # EKS Addons — các thành phần cốt lõi của cluster
   cluster_addons = {
-    coredns                = { most_recent = true }
-    kube-proxy             = { most_recent = true }
-    vpc-cni                = { most_recent = true }
-    aws-ebs-csi-driver     = { most_recent = true }  # Cần cho PVC của Redis
+    coredns            = { most_recent = true }
+    kube-proxy         = { most_recent = true }
+    vpc-cni            = { most_recent = true }
+    aws-ebs-csi-driver = { most_recent = true }
   }
 
-  # Managed Node Group — AWS quản lý việc provision EC2
   eks_managed_node_groups = {
-    main = {
-      name           = "${var.project_name}-nodes"
-      instance_types = [var.eks_node_instance_type]
+    spot = {
+      name = "${var.project_name}-spot-nodes"
+
+      # Spot instances — rẻ hơn On-Demand ~70-80%
+      # Liệt kê nhiều loại để tăng khả năng có Spot capacity
+      capacity_type  = "SPOT"
+      instance_types = var.eks_node_instance_types
 
       min_size     = var.eks_node_min_size
       max_size     = var.eks_node_max_size
       desired_size = var.eks_node_desired_size
 
-      # Node dùng private subnet, traffic ra ngoài qua NAT
-      subnet_ids = module.vpc.private_subnets
+      subnet_ids = module.vpc.public_subnets
 
-      labels = {
-        role = "application"
-      }
+      # Disk nhỏ lại — tiết kiệm thêm EBS cost
+      disk_size = 20
+
+      labels = { role = "application" }
     }
   }
 
-  # Cho phép user tạo cluster có quyền admin
   enable_cluster_creator_admin_permissions = true
 
   tags = {
     Project   = var.project_name
     ManagedBy = "terraform"
   }
-}
-
-# OIDC Provider — cần cho IRSA (IAM Roles for Service Accounts)
-# Cho phép pod trong EKS dùng IAM role mà không cần access key
-data "aws_iam_openid_connect_provider" "eks" {
-  url = module.eks.cluster_oidc_issuer_url
-  depends_on = [module.eks]
 }

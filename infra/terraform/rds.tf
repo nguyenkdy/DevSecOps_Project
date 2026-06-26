@@ -8,7 +8,15 @@ resource "aws_security_group" "rds" {
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
+    # Allow từ EKS node security group (nodes ở public subnet, RDS ở private subnet, cùng VPC)
     security_groups = [module.eks.node_security_group_id]
+  }
+
+  ingress {
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = [module.vpc.vpc_cidr_block]  # Fallback: allow toàn VPC
   }
 
   egress {

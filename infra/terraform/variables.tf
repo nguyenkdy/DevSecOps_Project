@@ -16,10 +16,10 @@ variable "eks_cluster_version" {
   default     = "1.31"
 }
 
-variable "eks_node_instance_type" {
-  description = "EC2 instance type cho EKS worker nodes"
-  type        = string
-  default     = "t3.medium"
+variable "eks_node_instance_types" {
+  description = "EC2 instance types cho EKS worker nodes — nhiều loại tăng khả năng được Spot"
+  type        = list(string)
+  default     = ["t3.small", "t3.medium", "t3a.small", "t3a.medium"]
 }
 
 variable "eks_node_desired_size" {
