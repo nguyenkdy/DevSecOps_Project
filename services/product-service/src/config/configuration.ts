@@ -13,6 +13,7 @@ export default () => ({
     endpoint: process.env.AWS_ENDPOINT || '',
     mediaBucket: process.env.S3_MEDIA_BUCKET || 'ecom-media-dev',
     staticBucket: process.env.S3_STATIC_BUCKET || 'ecom-static-dev',
+    cloudfrontUrl: process.env.CLOUDFRONT_URL || '',
   },
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET || 'dev_access_secret',

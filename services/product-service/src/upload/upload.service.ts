@@ -31,10 +31,10 @@ export class UploadService {
       }),
     });
 
-    // Local: trỏ về LocalStack; Production: dùng CloudFront domain
+    const cloudfrontUrl = config.get<string>('aws.cloudfrontUrl');
     this.cdnBase = isLocal
       ? `${endpoint}/${this.bucket}`
-      : `https://cdn.yourdomain.com`;
+      : (cloudfrontUrl || `https://s3.${config.get('aws.region')}.amazonaws.com/${this.bucket}`);
   }
 
   async uploadImage(
