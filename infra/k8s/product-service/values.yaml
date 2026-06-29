@@ -29,7 +29,7 @@ config:
   DATABASE_USER: postgres
   AWS_REGION: ap-southeast-1
   S3_MEDIA_BUCKET: "ecommerce-product-images-715923838470"
-  CLOUDFRONT_URL: "https://d2sk3hc934h1p6.cloudfront.net"
+  CLOUDFRONT_URL: "https://dgpidqlfdt7br.cloudfront.net"
 
 externalSecret:
   enabled: false
