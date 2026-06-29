@@ -60,8 +60,6 @@ export class UploadService {
         Key: key,
         Body: file.buffer,
         ContentType: file.mimetype,
-        // Public read — production nên dùng CloudFront OAI thay vì public bucket
-        ACL: 'public-read',
       }),
     );
 
