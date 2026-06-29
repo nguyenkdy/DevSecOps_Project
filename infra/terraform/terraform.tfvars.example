@@ -5,8 +5,10 @@ aws_region             = "ap-southeast-1"
 project_name           = "ecommerce"
 eks_cluster_version    = "1.31"
 
-# Spot instances — nhiều loại để tăng khả năng có capacity
-eks_node_instance_types = ["t3.small", "t3.medium", "t3a.small", "t3a.medium"]
+# On-Demand instances — ổn định, không bị terminate
+# t3.medium: 2 vCPU, 4GB RAM, ~$0.042/hr/node
+# 2 nodes = ~$60/tháng, đủ RAM cho toàn bộ 7 workloads (~2.5GB requests)
+eks_node_instance_types = ["t3.medium"]
 eks_node_desired_size   = 2
 eks_node_min_size       = 1
 eks_node_max_size       = 3

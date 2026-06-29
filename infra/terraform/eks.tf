@@ -25,12 +25,12 @@ module "eks" {
   }
 
   eks_managed_node_groups = {
-    spot = {
-      name = "${var.project_name}-spot-nodes"
+    ondemand = {
+      name = "${var.project_name}-ondemand-nodes"
 
-      # Spot instances — rẻ hơn On-Demand ~70-80%
-      # Liệt kê nhiều loại để tăng khả năng có Spot capacity
-      capacity_type  = "SPOT"
+      # On-Demand instances — ổn định, không bị terminate giữa chừng
+      # Phù hợp cho môi trường demo/bảo vệ đồ án
+      capacity_type  = "ON_DEMAND"
       instance_types = var.eks_node_instance_types
 
       min_size     = var.eks_node_min_size
@@ -39,7 +39,6 @@ module "eks" {
 
       subnet_ids = module.vpc.public_subnets
 
-      # Disk nhỏ lại — tiết kiệm thêm EBS cost
       disk_size = 20
 
       labels = { role = "application" }

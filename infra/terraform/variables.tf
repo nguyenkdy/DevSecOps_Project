@@ -17,9 +17,9 @@ variable "eks_cluster_version" {
 }
 
 variable "eks_node_instance_types" {
-  description = "EC2 instance types cho EKS worker nodes — nhiều loại tăng khả năng được Spot"
+  description = "EC2 instance types cho EKS worker nodes — t3.medium đủ RAM cho toàn bộ microservices"
   type        = list(string)
-  default     = ["t3.small", "t3.medium", "t3a.small", "t3a.medium"]
+  default     = ["t3.medium"]
 }
 
 variable "eks_node_desired_size" {
