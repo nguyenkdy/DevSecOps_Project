@@ -30,7 +30,7 @@ config:
   PORT: "3005"
   API_URL: "http://api-gateway:3000"
   # Điền sau khi api-gateway ALB được tạo — xem: kubectl get ingress -n ecommerce
-  NEXT_PUBLIC_API_URL: "REPLACE_WITH_API_GATEWAY_ALB_URL"
+  NEXT_PUBLIC_API_URL: "http://k8s-ecommerc-apigatew-bac50f6700-1615445116.ap-southeast-1.elb.amazonaws.com"
 
 externalSecret:
   enabled: false
