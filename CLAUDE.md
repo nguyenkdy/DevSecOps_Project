@@ -244,9 +244,42 @@ CREATE TABLE order_items (
 
 ## Môi trường
 
-- **Dev/Test**: Chung 1 EKS cluster, namespace riêng, nhánh `develop` auto deploy
-- **Production**: EKS cluster riêng, nhánh `main` + manual approval trên ArgoCD
+- **Production** ✅: EKS cluster `ecommerce-cluster` ap-southeast-1, namespace `ecommerce`, nhánh `main`
+- **Dev/Test** 🔧 (chưa làm): Cùng EKS cluster, namespace `ecommerce-dev`, nhánh `develop` auto deploy
 - **Local**: Docker Compose + LocalStack, `docker compose up -d` là chạy được hết
+
+## Trạng thái production (29/06/2026)
+
+**Endpoints:**
+- Frontend: `http://k8s-ecommerc-frontend-74bcefc5c8-360186450.ap-southeast-1.elb.amazonaws.com`
+- API Gateway: `http://k8s-ecommerc-apigatew-bac50f6700-1615445116.ap-southeast-1.elb.amazonaws.com`
+- ArgoCD: `http://a5909144139e1478b97145fd2f27661c-372496131.ap-southeast-1.elb.amazonaws.com`
+
+**Infrastructure:**
+- AWS Account: `715923838470`, Region: `ap-southeast-1`
+- EKS: `ecommerce-cluster`, node group `ecommerce-nodes`, t3.medium On-Demand x2
+- RDS: `ecommerce-postgres.c7gyqes8qujb.ap-southeast-1.rds.amazonaws.com` (PostgreSQL 17)
+- S3: `ecommerce-product-images-715923838470`
+- CloudFront: `https://dgpidqlfdt7br.cloudfront.net`
+- Jenkins EC2: IP `13.213.43.49` (động — thay đổi khi restart, chưa có Elastic IP)
+
+**Fixes quan trọng đã áp dụng (không có trong code gốc):**
+- `S3_MEDIA_BUCKET` env var (values.yaml cũ dùng `S3_BUCKET_NAME` sai tên)
+- `CLOUDFRONT_URL` đọc từ env thay vì hardcode `cdn.yourdomain.com`
+- `CORS_ORIGIN` configurable trong api-gateway cho môi trường production
+- Migration dùng compiled JS `dist/` (`migration:run:prod`) thay TypeScript source
+- Xóa `ACL: 'public-read'` trong S3 PutObject (bucket mới AWS không hỗ trợ ACL)
+- `unoptimized: true` trong Next.js Image (CloudFront lo CDN, không cần Next.js proxy)
+- `imagePullPolicy: Always` trong tất cả Helm deployments
+
+## Roadmap
+
+### Đang làm tiếp theo
+1. **Dev/Test environment**: namespace `ecommerce-dev`, ArgoCD ApplicationSet, trigger từ nhánh `develop`, Jenkinsfile deploy dev trước prod sau
+2. **HTTPS/TLS**: ACM certificate + HTTPS listener trên ALB
+3. **AWS Secrets Manager + ESO**: thay plain-text password trong ConfigMap
+4. **Fix Jenkins/SonarQube**: dùng `localhost:9000` thay vì IP động của EC2
+5. **CloudWatch Container Insights**: log tập trung + metrics CPU/Memory
 
 ## Patterns đang dùng
 

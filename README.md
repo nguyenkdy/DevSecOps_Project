@@ -294,15 +294,74 @@ Dùng PostgreSQL extension `unaccent` + `pg_trgm` + `to_tsvector` với config `
 | SES | ✅ | 62k email/tháng miễn phí |
 | Secrets Manager | ✅ | Bắt buộc cho DevSecOps |
 
-## Môi trường Deploy
+## Trạng thái triển khai
 
-| | Dev/Test | Production |
-|--|----------|-----------|
-| Trigger | Push nhánh `develop` | Merge `main` + manual approval |
-| EKS | 1 cluster (namespace dev/test) | Cluster riêng |
-| RDS | t3.micro, tắt ngoài giờ | t3.small multi-AZ |
-| Deploy | Tự động (ArgoCD) | ArgoCD approval gate |
-| Secret | AWS Secrets Manager + ESO | AWS Secrets Manager + ESO |
+### Production ✅ (Hoàn thành — 29/06/2026)
+
+| | Thông tin |
+|--|-----------|
+| **EKS Cluster** | `ecommerce-cluster` — ap-southeast-1, t3.medium On-Demand, 2 nodes |
+| **Frontend** | http://k8s-ecommerc-frontend-74bcefc5c8-360186450.ap-southeast-1.elb.amazonaws.com |
+| **API Gateway** | http://k8s-ecommerc-apigatew-bac50f6700-1615445116.ap-southeast-1.elb.amazonaws.com |
+| **ArgoCD** | http://a5909144139e1478b97145fd2f27661c-372496131.ap-southeast-1.elb.amazonaws.com |
+| **RDS** | `ecommerce-postgres.c7gyqes8qujb.ap-southeast-1.rds.amazonaws.com` — PostgreSQL 17 |
+| **S3 Bucket** | `ecommerce-product-images-715923838470` |
+| **CloudFront** | https://dgpidqlfdt7br.cloudfront.net |
+| **CI** | Jenkins trên EC2 — pipeline: Lint → SonarQube → Trivy → Build/Push ECR → GitOps |
+| **CD** | ArgoCD tự sync khi values.yaml thay đổi |
+
+**Services đang chạy trên namespace `ecommerce`:**
+```
+api-gateway      ✅  Running  (ALB ingress, rate limiting, JWT validation)
+user-service     ✅  Running  (Auth, profile, SNS welcome email)
+product-service  ✅  Running  (Catalog, S3 upload, CloudFront CDN)
+order-service    ✅  Running  (Cart Redis, checkout, SQS publish)
+payment-service  ✅  Running  (VNPay demo, SQS consumer, SNS order.paid)
+frontend         ✅  Running  (Next.js 15 SSR, CloudFront images)
+redis            ✅  Running  (Cart TTL 7 ngày, token blacklist)
+```
+
+### Dev/Test 🔧 (Kế hoạch — chưa triển khai)
+
+| | Dev | Production |
+|--|-----|-----------|
+| **Trigger** | Push nhánh `develop` | Merge `main` + manual approval ArgoCD |
+| **Namespace** | `ecommerce-dev` (cùng EKS cluster) | `ecommerce` |
+| **RDS** | Database riêng (`*_dev`) trên cùng RDS instance | Database production |
+| **ECR Tag** | `dev-<buildNumber>-<gitSha>` | `<buildNumber>-<gitSha>` |
+| **ArgoCD App** | Auto-sync không cần approval | Manual sync hoặc approval gate |
+| **Secrets** | AWS Secrets Manager path `/ecommerce-dev/*` | `/ecommerce/*` |
+| **URL** | ALB riêng (dev-*.elb.amazonaws.com) | ALB production |
+
+## Roadmap
+
+### ✅ Đã hoàn thành
+- [x] 6 microservices + frontend hoàn chỉnh (NestJS + Next.js 15)
+- [x] Docker Compose local dev với LocalStack
+- [x] EKS cluster On-Demand t3.medium, 2 nodes
+- [x] Helm charts + ArgoCD GitOps CD
+- [x] AWS Load Balancer Controller (ALB Ingress)
+- [x] Jenkins CI pipeline (Lint → SonarQube → Trivy → ECR → GitOps)
+- [x] RDS PostgreSQL 17, TypeORM migrations production
+- [x] S3 + CloudFront CDN cho product images
+- [x] IRSA (IAM Roles for Service Accounts) cho product/order/payment/user service
+- [x] SQS async messaging (Order → Payment)
+- [x] CORS production configuration
+- [x] Full e-commerce flow: register → browse → cart → checkout → payment demo
+
+### 🔧 Đang làm
+- [ ] **Dev/Test environment** — namespace `ecommerce-dev`, trigger từ nhánh `develop`
+  - ArgoCD Application Set cho dev namespace
+  - Jenkinsfile cập nhật để deploy sang dev trước, production sau
+  - RDS databases riêng cho dev (`*_dev`)
+
+### 📋 Kế hoạch tiếp theo
+- [ ] **HTTPS/TLS** — ACM certificate + ALB HTTPS listener (port 443)
+- [ ] **AWS Secrets Manager + External Secrets Operator** — thay thế plain-text ConfigMap
+- [ ] **Fix Jenkins/SonarQube** — dùng `localhost:9000` thay IP động
+- [ ] **CloudWatch Container Insights** — log tập trung + metrics
+- [ ] **CloudWatch Alarms** — alert pod crash, high CPU, DB connections
+- [ ] **Elastic IP cho Jenkins EC2** — tránh IP thay đổi khi restart instance
 
 ## Lưu ý quan trọng
 
