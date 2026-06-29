@@ -14,7 +14,7 @@ export default new DataSource({
   password: process.env.DATABASE_PASSWORD || 'postgres',
   database: process.env.DATABASE_NAME || 'order_db',
   entities: [Order, OrderItem],
-  migrations: ['src/database/migrations/*.ts'],
+  migrations: [__dirname + '/migrations/*.js'],
   synchronize: false,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });

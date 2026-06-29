@@ -13,7 +13,7 @@ export default new DataSource({
   password: process.env.DATABASE_PASSWORD || 'postgres',
   database: process.env.DATABASE_NAME || 'payment_db',
   entities: [Transaction, PaymentLog],
-  migrations: ['src/database/migrations/*.ts'],
+  migrations: [__dirname + '/migrations/*.js'],
   synchronize: false,
   logging: process.env.NODE_ENV === 'development',
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
