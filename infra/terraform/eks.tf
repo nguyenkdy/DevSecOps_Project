@@ -26,7 +26,7 @@ module "eks" {
 
   eks_managed_node_groups = {
     ondemand = {
-      name = "${var.project_name}-ondemand-nodes"
+      name = "${var.project_name}-nodes"
 
       # On-Demand instances — ổn định, không bị terminate giữa chừng
       # Phù hợp cho môi trường demo/bảo vệ đồ án
