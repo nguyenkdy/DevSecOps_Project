@@ -16,4 +16,5 @@ export default new DataSource({
   entities: [User, Address],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });

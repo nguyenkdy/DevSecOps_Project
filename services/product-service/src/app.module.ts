@@ -25,6 +25,7 @@ import { Category } from './categories/entities/category.entity';
         namingStrategy: new SnakeCaseNamingStrategy(),
         synchronize: false,
         logging: config.get('nodeEnv') === 'development',
+        ssl: config.get('nodeEnv') === 'production' ? { rejectUnauthorized: false } : false,
       }),
     }),
     ProductsModule,

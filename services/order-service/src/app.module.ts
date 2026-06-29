@@ -36,6 +36,7 @@ import { OrderItem } from './orders/entities/order-item.entity';
         entities: [Order, OrderItem],
         synchronize: false,
         logging: config.get('nodeEnv') === 'development',
+        ssl: config.get('nodeEnv') === 'production' ? { rejectUnauthorized: false } : false,
       }),
     }),
     CommonModule,

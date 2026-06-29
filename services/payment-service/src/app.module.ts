@@ -26,6 +26,7 @@ import { PaymentLog } from './payments/entities/payment-log.entity';
         entities: [Transaction, PaymentLog],
         synchronize: false,
         logging: config.get('nodeEnv') === 'development',
+        ssl: config.get('nodeEnv') === 'production' ? { rejectUnauthorized: false } : false,
       }),
     }),
     CommonModule,

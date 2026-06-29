@@ -27,6 +27,7 @@ import { Address } from './users/entities/address.entity';
         entities: [User, Address],
         synchronize: false,
         logging: config.get('nodeEnv') === 'development',
+        ssl: config.get('nodeEnv') === 'production' ? { rejectUnauthorized: false } : false,
       }),
     }),
     CommonModule,
