@@ -19,9 +19,10 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
   // ─── CORS ──────────────────────────────────────────────────────────────────
+  const corsOrigin = config.get<string>('corsOrigin');
   app.enableCors({
     origin: config.get('nodeEnv') === 'production'
-      ? [/\.yourdomain\.com$/]
+      ? corsOrigin ? corsOrigin.split(',').map(o => o.trim()) : [/\.yourdomain\.com$/]
       : true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

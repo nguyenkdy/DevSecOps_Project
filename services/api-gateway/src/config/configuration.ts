@@ -11,6 +11,7 @@ export default () => ({
     orderService: process.env.ORDER_SERVICE_URL || 'http://localhost:3003',
     paymentService: process.env.PAYMENT_SERVICE_URL || 'http://localhost:3004',
   },
+  corsOrigin: process.env.CORS_ORIGIN || '',
   rateLimit: {
     // Cửa sổ 15 phút (ms)
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'),

@@ -28,6 +28,7 @@ ingress:
 config:
   NODE_ENV: production
   PORT: "3000"
+  CORS_ORIGIN: "http://k8s-ecommerc-frontend-74bcefc5c8-360186450.ap-southeast-1.elb.amazonaws.com"
   USER_SERVICE_URL: "http://user-service:3001"
   PRODUCT_SERVICE_URL: "http://product-service:3002"
   ORDER_SERVICE_URL: "http://order-service:3003"
