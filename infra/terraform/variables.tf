@@ -13,7 +13,7 @@ variable "project_name" {
 variable "eks_cluster_version" {
   description = "Kubernetes version"
   type        = string
-  default     = "1.33"
+  default     = "1.35"
 }
 
 variable "eks_node_instance_types" {
