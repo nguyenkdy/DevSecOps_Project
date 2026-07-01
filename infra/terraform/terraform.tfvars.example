@@ -3,7 +3,7 @@
 
 aws_region             = "ap-southeast-1"
 project_name           = "ecommerce"
-eks_cluster_version    = "1.31"
+eks_cluster_version    = "1.35"
 
 # On-Demand instances — ổn định, không bị terminate
 # t3.medium: 2 vCPU, 4GB RAM, ~$0.042/hr/node
