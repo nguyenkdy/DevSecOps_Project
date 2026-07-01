@@ -244,7 +244,7 @@ CREATE TABLE order_items (
 
 ## Môi trường
 
-- **Production** ✅: EKS cluster `ecommerce-cluster` ap-southeast-1, namespace `ecommerce`, nhánh `main`
+- **Production** ✅: EKS cluster `ecommerce-eks` ap-southeast-1, namespace `ecommerce`, nhánh `main`
 - **Dev/Test** 🔧 (chưa làm): Cùng EKS cluster, namespace `ecommerce-dev`, nhánh `develop` auto deploy
 - **Local**: Docker Compose + LocalStack, `docker compose up -d` là chạy được hết
 
@@ -257,7 +257,7 @@ CREATE TABLE order_items (
 
 **Infrastructure:**
 - AWS Account: `715923838470`, Region: `ap-southeast-1`
-- EKS: `ecommerce-cluster`, node group `ecommerce-nodes`, t3.medium On-Demand x2
+- EKS: `ecommerce-eks`, node group `ecommerce-nodes`, t3.medium On-Demand x2
 - RDS: `ecommerce-postgres.c7gyqes8qujb.ap-southeast-1.rds.amazonaws.com` (PostgreSQL 17)
 - S3: `ecommerce-product-images-715923838470`
 - CloudFront: `https://dgpidqlfdt7br.cloudfront.net`
