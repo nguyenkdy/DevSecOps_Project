@@ -94,6 +94,60 @@ pipeline {
       }
     }
 
+    stage('Build & Push ECR — Dev') {
+      when {
+        allOf {
+          expression { env.GIT_BRANCH ==~ /.*\/develop|^develop$/ }
+          not { environment name: 'SKIP', value: 'true' }
+        }
+      }
+      steps {
+        withCredentials([[
+          $class: 'AmazonWebServicesCredentialsBinding',
+          credentialsId: 'aws-credentials',
+          accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+          secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+        ]]) {
+          sh '''
+            DEV_TAG="dev-${IMAGE_TAG}"
+            aws ecr get-login-password --region ${AWS_REGION} | \
+              docker login --username AWS --password-stdin ${ECR_REGISTRY}
+
+            NEXT_PUBLIC_API_URL=$(grep 'NEXT_PUBLIC_API_URL' infra/k8s/frontend/values.dev.yaml | awk '{print $2}' | tr -d '"')
+            echo "Building dev with NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
+
+            docker build -t ${ECR_REGISTRY}/${SERVICE_NAME}:${DEV_TAG} \
+              --build-arg NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL}" \
+              --target production ${SERVICE_DIR}
+            docker tag ${ECR_REGISTRY}/${SERVICE_NAME}:${DEV_TAG} \
+              ${ECR_REGISTRY}/${SERVICE_NAME}:latest-dev
+
+            docker push ${ECR_REGISTRY}/${SERVICE_NAME}:${DEV_TAG}
+            docker push ${ECR_REGISTRY}/${SERVICE_NAME}:latest-dev
+          '''
+        }
+      }
+    }
+
+    stage('Update GitOps Manifest — Dev') {
+      when {
+        allOf {
+          expression { env.GIT_BRANCH ==~ /.*\/develop|^develop$/ }
+          not { environment name: 'SKIP', value: 'true' }
+        }
+      }
+      steps {
+        sh '''
+          DEV_TAG="dev-${IMAGE_TAG}"
+          sed -i "s|tag:.*|tag: ${DEV_TAG}|" infra/k8s/frontend/values.dev.yaml || echo "values.dev.yaml chưa tồn tại"
+          git config user.email "ci@jenkins"
+          git config user.name "Jenkins CI"
+          git commit -am "ci: update frontend dev to ${DEV_TAG}" || echo "no changes"
+          git push origin develop || true
+        '''
+      }
+    }
+
     stage('Build & Push ECR') {
       when {
         allOf {

@@ -1,0 +1,20 @@
+image:
+  tag: latest-dev
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+config:
+  NODE_ENV: development
+  # Cập nhật sau khi deploy lần đầu: kubectl get ingress -n ecommerce-dev
+  NEXT_PUBLIC_API_URL: "PLACEHOLDER_DEV_API_GATEWAY_URL"
+
+externalSecret:
+  enabled: false

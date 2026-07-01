@@ -1,0 +1,21 @@
+image:
+  tag: latest-dev
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 300m
+    memory: 256Mi
+
+config:
+  NODE_ENV: development
+  # Cập nhật sau khi deploy lần đầu: kubectl get ingress -n ecommerce-dev
+  CORS_ORIGIN: "PLACEHOLDER_DEV_FRONTEND_URL"
+
+externalSecret:
+  enabled: false
+  secretPath: /ecommerce/api-gateway

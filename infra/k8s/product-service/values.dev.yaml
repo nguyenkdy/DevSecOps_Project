@@ -1,0 +1,22 @@
+image:
+  tag: latest-dev
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 300m
+    memory: 256Mi
+
+config:
+  NODE_ENV: development
+  DATABASE_NAME: product_db_dev
+  CLOUDFRONT_URL: "https://d3jt0sb314en8l.cloudfront.net"
+  S3_MEDIA_BUCKET: "ecommerce-product-images-715923838470"
+
+externalSecret:
+  enabled: false
+  secretPath: /ecommerce/product-service
