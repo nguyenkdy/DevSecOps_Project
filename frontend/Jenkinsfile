@@ -20,7 +20,7 @@ pipeline {
       steps { checkout scm }
     }
 
-    stage('Detect Changes') {
+    stage('Detecting Changes') {
       steps {
         script {
           def prev = env.GIT_PREVIOUS_COMMIT
