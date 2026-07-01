@@ -251,8 +251,8 @@ CREATE TABLE order_items (
 ## Trạng thái production (29/06/2026)
 
 **Endpoints:**
-- Frontend: `http://k8s-ecommerc-frontend-74bcefc5c8-360186450.ap-southeast-1.elb.amazonaws.com`
-- API Gateway: `http://k8s-ecommerc-apigatew-bac50f6700-1615445116.ap-southeast-1.elb.amazonaws.com`
+- Frontend: `http://k8s-ecommerc-frontend-74bcefc5c8-982823328.ap-southeast-1.elb.amazonaws.com`
+- API Gateway: `http://k8s-ecommerc-apigatew-bac50f6700-113943684.ap-southeast-1.elb.amazonaws.com`
 - ArgoCD: `http://a5909144139e1478b97145fd2f27661c-372496131.ap-southeast-1.elb.amazonaws.com`
 
 **Infrastructure:**
