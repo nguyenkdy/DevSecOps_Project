@@ -1,5 +1,5 @@
 image:
-  tag: latest-develop
+  tag: develop-8-5da7604
 
 replicaCount: 1
 
