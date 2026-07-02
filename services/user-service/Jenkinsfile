@@ -163,7 +163,7 @@ pipeline {
       steps {
         sh '''
           DEV_TAG="develop-${IMAGE_TAG}"
-          sed -i "s|tag:.*|tag: ${DEV_TAG}|" infra/k8s/user-service/values.develop.yaml || echo "values.develop.yaml chưa tồn tại"
+          sed -i "s|tag:.*|tag: ${DEV_TAG}|" infra/k8s/user-service/values.dev.yaml
           git config user.email "ci@jenkins"
           git config user.name "Jenkins CI"
           git commit -am "ci: update user-service develop to ${DEV_TAG}" || echo "no changes"
