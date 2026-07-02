@@ -220,3 +220,5 @@ pipeline {
     failure { echo "Pipeline thất bại — kiểm tra log" }
   }
 }
+
+// rebuild after disk cleanup
