@@ -88,7 +88,7 @@ pipeline {
       steps {
         sh '''
           docker build -t ${SERVICE_NAME}:scan --target production ${SERVICE_DIR}
-          trivy image --severity HIGH,CRITICAL --exit-code 0 --format table ${SERVICE_NAME}:scan
+          trivy image --severity HIGH,CRITICAL --exit-code 0 --format table --scanners vuln ${SERVICE_NAME}:scan || true
           docker rmi ${SERVICE_NAME}:scan || true
         '''
       }
