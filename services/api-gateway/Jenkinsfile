@@ -131,7 +131,7 @@ pipeline {
         }
       }
       steps {
-        withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
+        withCredentials([usernamePassword(credentialsId: 'github-token', usernameVariable: 'GITHUB_USER', passwordVariable: 'GITHUB_TOKEN')]) {
           sh '''
             DEV_TAG="develop-${IMAGE_TAG}"
             sed -i "s|tag:.*|tag: ${DEV_TAG}|" infra/k8s/api-gateway/values.dev.yaml
