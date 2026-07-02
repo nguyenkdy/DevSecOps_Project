@@ -14,7 +14,7 @@ resources:
 config:
   NODE_ENV: development
   # Cập nhật sau khi deploy lần đầu: kubectl get ingress -n ecommerce-dev
-  CORS_ORIGIN: "PLACEHOLDER_DEV_FRONTEND_URL"
+  CORS_ORIGIN: "http://k8s-ecommerc-frontend-098809d8ea-1169492521.ap-southeast-1.elb.amazonaws.com"
 
 externalSecret:
   enabled: false

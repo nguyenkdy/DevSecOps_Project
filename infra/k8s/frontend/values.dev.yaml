@@ -14,7 +14,7 @@ resources:
 config:
   NODE_ENV: development
   # Cập nhật sau khi deploy lần đầu: kubectl get ingress -n ecommerce-dev
-  NEXT_PUBLIC_API_URL: "PLACEHOLDER_DEV_API_GATEWAY_URL"
+  NEXT_PUBLIC_API_URL: "http://k8s-ecommerc-apigatew-afc7d5cc0d-1740156965.ap-southeast-1.elb.amazonaws.com"
 
 externalSecret:
   enabled: false

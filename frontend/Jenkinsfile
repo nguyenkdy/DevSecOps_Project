@@ -113,7 +113,7 @@ pipeline {
             aws ecr get-login-password --region ${AWS_REGION} | \
               docker login --username AWS --password-stdin ${ECR_REGISTRY}
 
-            NEXT_PUBLIC_API_URL=$(grep 'NEXT_PUBLIC_API_URL' infra/k8s/frontend/values.develop.yaml | awk '{print $2}' | tr -d '"')
+            NEXT_PUBLIC_API_URL=$(grep 'NEXT_PUBLIC_API_URL' infra/k8s/frontend/values.dev.yaml | awk '{print $2}' | tr -d '"')
             echo "Building develop with NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
 
             docker build -t ${ECR_REGISTRY}/${SERVICE_NAME}:${DEV_TAG} \
