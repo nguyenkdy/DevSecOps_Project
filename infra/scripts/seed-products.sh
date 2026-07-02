@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e
 
-API="http://k8s-ecommerc-apigatew-bac50f6700-113943684.ap-southeast-1.elb.amazonaws.com/api/v1"
+API="http://k8s-ecommerc-apigatew-bac50f6700-1295214124.ap-southeast-1.elb.amazonaws.com/api/v1"
 DB_HOST="ecommerce-postgres.c7gyqes8qujb.ap-southeast-1.rds.amazonaws.com"
 DB_PASS="this_is_my_strong_password"
-ADMIN_EMAIL="nguyenkhanhduy20050616@gmail.com"
+ADMIN_EMAIL="admin@gmail.com"
 ADMIN_PASSWORD="Duy200506"
 
 echo ""
@@ -198,5 +198,5 @@ echo "   - Admin: $ADMIN_EMAIL"
 echo "======================================================"
 echo ""
 echo "Truy cập web:"
-echo "  http://k8s-ecommerc-frontend-74bcefc5c8-982823328.ap-southeast-1.elb.amazonaws.com"
+echo "  http://k8s-ecommerc-frontend-74bcefc5c8-1434814566.ap-southeast-1.elb.amazonaws.com"
 echo ""
