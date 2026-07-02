@@ -137,14 +137,17 @@ pipeline {
         }
       }
       steps {
-        sh '''
-          DEV_TAG="develop-${IMAGE_TAG}"
-          sed -i "s|tag:.*|tag: ${DEV_TAG}|" infra/k8s/frontend/values.dev.yaml
-          git config user.email "ci@jenkins"
-          git config user.name "Jenkins CI"
-          git commit -am "ci: update frontend develop to ${DEV_TAG}" || echo "no changes"
-          git push origin develop || true
-        '''
+        withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
+          sh '''
+            DEV_TAG="develop-${IMAGE_TAG}"
+            sed -i "s|tag:.*|tag: ${DEV_TAG}|" infra/k8s/frontend/values.dev.yaml
+            git config user.email "ci@jenkins"
+            git config user.name "Jenkins CI"
+            git remote set-url origin https://${GITHUB_TOKEN}@github.com/nguyenkdy/DevSecOps_Project.git
+            git commit -am "ci: update frontend develop to ${DEV_TAG}" || echo "no changes"
+            git push origin develop
+          '''
+        }
       }
     }
 
