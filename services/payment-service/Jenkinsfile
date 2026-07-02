@@ -117,17 +117,17 @@ pipeline {
           secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
         ]]) {
           sh '''
-            DEV_TAG="dev-${IMAGE_TAG}"
+            DEV_TAG="develop-${IMAGE_TAG}"
             aws ecr get-login-password --region ${AWS_REGION} | \
               docker login --username AWS --password-stdin ${ECR_REGISTRY}
 
             docker build -t ${ECR_REGISTRY}/${SERVICE_NAME}:${DEV_TAG} \
               --target production ${SERVICE_DIR}
             docker tag ${ECR_REGISTRY}/${SERVICE_NAME}:${DEV_TAG} \
-              ${ECR_REGISTRY}/${SERVICE_NAME}:latest-dev
+              ${ECR_REGISTRY}/${SERVICE_NAME}:latest-develop
 
             docker push ${ECR_REGISTRY}/${SERVICE_NAME}:${DEV_TAG}
-            docker push ${ECR_REGISTRY}/${SERVICE_NAME}:latest-dev
+            docker push ${ECR_REGISTRY}/${SERVICE_NAME}:latest-develop
           '''
         }
       }
@@ -142,11 +142,11 @@ pipeline {
       }
       steps {
         sh '''
-          DEV_TAG="dev-${IMAGE_TAG}"
-          sed -i "s|tag:.*|tag: ${DEV_TAG}|" infra/k8s/payment-service/values.dev.yaml || echo "values.dev.yaml chưa tồn tại"
+          DEV_TAG="develop-${IMAGE_TAG}"
+          sed -i "s|tag:.*|tag: ${DEV_TAG}|" infra/k8s/payment-service/values.develop.yaml || echo "values.develop.yaml chưa tồn tại"
           git config user.email "ci@jenkins"
           git config user.name "Jenkins CI"
-          git commit -am "ci: update payment-service dev to ${DEV_TAG}" || echo "no changes"
+          git commit -am "ci: update payment-service develop to ${DEV_TAG}" || echo "no changes"
           git push origin develop || true
         '''
       }
