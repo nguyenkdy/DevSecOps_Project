@@ -23,6 +23,7 @@ COPY package*.json ./
 RUN npm install --legacy-peer-deps --omit=dev && npm cache clean --force
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/public ./public
+RUN chown -R node:node /app
 USER node
 EXPOSE 3005
 CMD ["npm", "run", "start"]
