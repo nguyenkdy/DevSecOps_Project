@@ -21,6 +21,11 @@ export default async function HomePage() {
 
   return (
     <div>
+      {/* New feature banner */}
+      <div className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-center py-2 px-4 text-sm font-medium">
+        🎉 <span className="font-bold">Mới!</span> Quản lý địa chỉ giao hàng ngay trong hồ sơ — thanh toán nhanh hơn bao giờ hết!
+      </div>
+
       {/* Hero */}
       <section className="bg-gradient-to-br from-blue-600 to-blue-800 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 text-center">
