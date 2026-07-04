@@ -30,11 +30,19 @@ pipeline {
             env.SKIP = 'true'
             return
           }
-          def changed = sh(
-            script: "git diff --name-only HEAD~1 HEAD | grep '^${env.SERVICE_DIR}/' | grep -v '/Jenkinsfile\$' || true",
-            returnStdout: true
-          ).trim()
-          if (!changed) {
+          def changedFiles = currentBuild.changeSets.collectMany { cs ->
+            cs.items.collectMany { item ->
+              item.affectedFiles.collect { it.path }
+            }
+          }
+          if (changedFiles.isEmpty()) {
+            echo "Không xác định được thay đổi (build đầu hoặc trigger thủ công) — build toàn bộ"
+            return
+          }
+          def hasChanges = changedFiles.any { path ->
+            path.startsWith("${env.SERVICE_DIR}/") && !path.endsWith('Jenkinsfile')
+          }
+          if (!hasChanges) {
             echo "Không có thay đổi trong ${env.SERVICE_DIR} — bỏ qua pipeline"
             env.SKIP = 'true'
           }
@@ -217,7 +225,7 @@ pipeline {
     always {
       script {
         if (env.SKIP == 'true') {
-          currentBuild.result = 'NOT_BUILT'
+          currentBuild.result = 'SUCCESS'
           echo "Pipeline skipped — no changes in ${env.SERVICE_DIR}"
         }
       }
