@@ -310,7 +310,7 @@ Developer push code
                     │
                     ├─ Detect diff trong Helm chart
                     ├─ Apply Kubernetes manifests
-                    └─ Rolling update deployment
+                    └─ Rolling update deployment (hoặc Canary nếu service dùng Argo Rollouts)
                                 │
                                 ▼
                          EKS (namespace: ecommerce)
@@ -324,8 +324,9 @@ Stage 1: Checkout
   └── git checkout từ GitHub
 
 Stage 2: Detect Changes
-  └── git diff --name-only {prev}..{current}
+  └── currentBuild.changeSets API (Jenkins SCM) — đọc danh sách file thay đổi chính xác từ push event
       Nếu không có file thay đổi trong services/{name}/ → SKIP toàn pipeline
+      [skip ci] trong commit message → bỏ qua (tránh loop khi Jenkins push manifest)
 
 Stage 3: Install
   └── npm ci --legacy-peer-deps
@@ -389,7 +390,7 @@ GitHub (infra/k8s/{service}/values.yaml)
 
 | | Production | Dev |
 |--|------------|-----|
-| **Frontend** | http://k8s-ecommerc-frontend-74bcefc5c8-360186450.ap-southeast-1.elb.amazonaws.com | http://k8s-ecommerc-frontend-098809d8ea-1169492521.ap-southeast-1.elb.amazonaws.com |
+| **Frontend** | http://k8s-ecommerc-frontend-74bcefc5c8-1434814566.ap-southeast-1.elb.amazonaws.com | http://k8s-ecommerc-frontend-098809d8ea-1169492521.ap-southeast-1.elb.amazonaws.com |
 | **API Gateway** | http://k8s-ecommerc-apigatew-bac50f6700-1615445116.ap-southeast-1.elb.amazonaws.com | http://k8s-ecommerc-apigatew-afc7d5cc0d-1740156965.ap-southeast-1.elb.amazonaws.com |
 | **ArgoCD** | http://a5909144139e1478b97145fd2f27661c-372496131.ap-southeast-1.elb.amazonaws.com | — |
 
@@ -529,6 +530,14 @@ PostgreSQL extension `unaccent` + `pg_trgm` + `to_tsvector` với config `vietna
 ### GitOps (Jenkins → ArgoCD)
 Jenkins CI chỉ build image và cập nhật `image.tag` trong `values.yaml` rồi push lên Git. ArgoCD là source of truth — tự detect diff và apply lên EKS. Không có bước `kubectl apply` trong CI pipeline.
 
+### Canary Deployment (Argo Rollouts)
+Frontend dùng `argoproj.io/v1alpha1 Rollout` thay vì `apps/v1 Deployment`. Khi có image tag mới, Argo Rollouts tự động:
+1. Spin up 1 canary pod (new version) — ~33% traffic
+2. **Pause** chờ verify thủ công
+3. Promote → tất cả pods chuyển sang version mới
+
+ALB sticky sessions (`stickiness.lb_cookie`) đảm bảo mỗi user luôn hit cùng một pod version — tránh CSS hash mismatch giữa canary và stable pods.
+
 ---
 
 ## Quyết định Cost
@@ -569,6 +578,9 @@ Jenkins CI chỉ build image và cập nhật `image.tag` trong `values.yaml` r�
 - [x] CORS production configuration (CORS_ORIGIN env)
 - [x] Full e-commerce flow: browse → cart → checkout → QR payment → confirm
 - [x] **Dev/Test environment** — namespace `ecommerce-dev`, Jenkins Multibranch Pipeline (GitHub Branch Source + webhook), image tag `develop-{buildNum}-{sha}`, `values.dev.yaml` overlay, databases `user_db_dev`/`product_db_dev`/`order_db_dev`/`payment_db_dev`, K8s secrets `{svc}-dev-secret`, api-gateway-dev routing đến `-dev` services
+- [x] **Reliable change detection** — Jenkins dùng `currentBuild.changeSets` API thay `git diff HEAD~1` — chính xác cho single commit, batch push, merge commit. `[skip ci]` ngăn manifest commits trigger lại pipeline
+- [x] **Address management** — user-service thêm `PATCH/DELETE /api/v1/users/me/addresses/:id`; frontend profile page quản lý địa chỉ (thêm/sửa/xóa/đặt mặc định); checkout auto-fill từ địa chỉ đã lưu
+- [x] **Canary Deployment (Argo Rollouts v1.9.0)** — frontend Helm chart chuyển `Deployment` → `Rollout`, strategy canary `setWeight: 40` + `pause: {}`, ALB sticky sessions, replicaCount: 3
 
 ### 🔧 Đang triển khai
 
@@ -579,8 +591,7 @@ _(không có việc đang dở)_
 - [ ] **HTTPS/TLS** — AWS ACM certificate + ALB HTTPS listener port 443
 - [ ] **AWS Secrets Manager + External Secrets Operator** — thay plain-text trong ConfigMap
 - [ ] **Fix Jenkins/SonarQube** — Elastic IP cho EC2, dùng `localhost:9000` thay IP động
-- [ ] **CloudWatch Container Insights** — log tập trung, metrics CPU/Memory/Request
-- [ ] **CloudWatch Alarms** — alert pod crash, high CPU, DB connections vượt ngưỡng
+- [ ] **CloudWatch Container Insights + AWS X-Ray** — metrics/logs/traces tập trung, service dependency graph, ADOT collector DaemonSet
 
 ---
 

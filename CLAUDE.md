@@ -57,6 +57,8 @@ ecommerce/
 - POST /api/v1/auth/logout
 - GET/PUT /api/v1/users/me
 - GET/POST /api/v1/users/me/addresses
+- PATCH /api/v1/users/me/addresses/:id
+- DELETE /api/v1/users/me/addresses/:id
 
 **Đặc điểm quan trọng**:
 - passwordHash dùng bcryptjs (không phải bcrypt native)
@@ -181,7 +183,7 @@ ecommerce/
 - `/orders` — Lịch sử đơn hàng (protected)
 - `/orders/[id]` — Chi tiết đơn hàng (protected)
 - `/login`, `/register` — Auth forms
-- `/profile` — Thông tin cá nhân
+- `/profile` — Thông tin cá nhân + quản lý địa chỉ giao hàng (thêm/sửa/xóa/đặt mặc định) + ví EcomPay
 **Đặc điểm quan trọng**:
 - AuthContext: JWT lưu localStorage, auto-refresh 401, `register()` + `setUser()` exposed
 - CartContext: `ecom_cart` localStorage persistence
@@ -190,6 +192,9 @@ ecommerce/
 - "Auto approve" button gọi `POST /payments/auto-approve/:ref` để demo thanh toán
 - Docker: development target (npm run dev), production target (next build)
 - **Next.js 15 breaking change**: `searchParams` trong server components là `Promise<SearchParams>` — phải `await` trước khi dùng
+- Checkout auto-fill địa chỉ từ danh sách địa chỉ đã lưu trong profile
+- `addressesApi` trong `lib/api.ts`: list/create/update/delete địa chỉ
+- `walletApi` trong `lib/api.ts`: getBalance + topUp (EcomPay demo)
 
 ## Database design
 
@@ -245,8 +250,9 @@ CREATE TABLE order_items (
 ## Môi trường
 
 - **Production** ✅: EKS cluster `ecommerce-eks` ap-southeast-1, namespace `ecommerce`, nhánh `main`
-- **Dev/Test** 🔧 (chưa làm): Cùng EKS cluster, namespace `ecommerce-dev`, nhánh `develop` auto deploy
+- **Dev/Test** ✅: Cùng EKS cluster, namespace `ecommerce-dev`, nhánh `develop` auto deploy
 - **Local**: Docker Compose + LocalStack, `docker compose up -d` là chạy được hết
+- **Argo Rollouts** ✅: v1.9.0 cài trong namespace `argo-rollouts` — frontend dùng canary strategy (setWeight:40, pause)
 
 ## Hạ tầng & Vận hành
 
@@ -254,7 +260,7 @@ CREATE TABLE order_items (
 
 | | Production | Dev |
 |--|------------|-----|
-| **Frontend** | http://k8s-ecommerc-frontend-74bcefc5c8-360186450.ap-southeast-1.elb.amazonaws.com | http://k8s-ecommerc-frontend-098809d8ea-1169492521.ap-southeast-1.elb.amazonaws.com |
+| **Frontend** | http://k8s-ecommerc-frontend-74bcefc5c8-1434814566.ap-southeast-1.elb.amazonaws.com | http://k8s-ecommerc-frontend-098809d8ea-1169492521.ap-southeast-1.elb.amazonaws.com |
 | **API Gateway** | http://k8s-ecommerc-apigatew-bac50f6700-1615445116.ap-southeast-1.elb.amazonaws.com | http://k8s-ecommerc-apigatew-afc7d5cc0d-1740156965.ap-southeast-1.elb.amazonaws.com |
 | **ArgoCD** | http://a5909144139e1478b97145fd2f27661c-372496131.ap-southeast-1.elb.amazonaws.com | — |
 
@@ -333,6 +339,22 @@ done
 
 > **Tại sao tên khác nhau?** Helm release tên `order-service-dev` → pod expect secret `order-service-dev-secret`. Nếu tên sai, `optional: true` trong secretRef khiến pod start mà không có DATABASE_PASSWORD → lỗi auth DB.
 
+### Canary Deployment (frontend)
+
+```bash
+# Xem trạng thái rollout
+kubectl argo rollouts get rollout frontend -n ecommerce --watch
+
+# Promote sau khi verify canary OK
+kubectl argo rollouts promote frontend -n ecommerce
+
+# Rollback nếu có vấn đề
+kubectl argo rollouts abort frontend -n ecommerce
+kubectl argo rollouts undo frontend -n ecommerce
+```
+
+> **Lưu ý canary + Next.js**: ALB sticky sessions (`stickiness.lb_cookie`) được bật để tránh CSS hash mismatch giữa canary pod (build mới) và stable pods (build cũ). Browser bị ghim vào 1 pod — cần xóa cookie `AWSALB` hoặc dùng cửa sổ ẩn danh mới để test pod khác.
+
 ### Rebuild từ đầu (sau terraform destroy+apply)
 
 ```bash
@@ -345,6 +367,13 @@ helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
 # 2. ArgoCD
 kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# 2b. Argo Rollouts (cần cho frontend canary)
+kubectl create namespace argo-rollouts
+kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
+# Cài kubectl plugin
+curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64
+chmod +x kubectl-argo-rollouts-linux-amd64 && sudo mv kubectl-argo-rollouts-linux-amd64 /usr/local/bin/kubectl-argo-rollouts
 
 # 3. Tạo namespaces + secrets (xem mục K8s Secrets bên trên)
 
@@ -383,14 +412,29 @@ done
 - K8s secret dev phải tên `{svc}-dev-secret` (không phải `{svc}-secret`) vì Helm release name là `{svc}-dev`
 - api-gateway-dev cần override URL service: `USER_SERVICE_URL: http://user-service-dev:3001` (không phải `user-service`)
 - Jenkins git push dùng `git push origin HEAD:develop` (không phải `git push origin develop`) vì checkout tạo detached HEAD
+- Jenkins `currentBuild.changeSets` thay `git diff HEAD~1 HEAD` — tránh false positive khi merge commit
+- Frontend Dockerfile: `RUN chown -R node:node /app` trước `USER node` — fix `EACCES: permission denied /app/.next/cache`
+- Frontend Jenkinsfile: `docker builder prune -f` trước Trivy build — tránh `no space left on device` trên Jenkins EC2
+- Frontend SonarQube: `-Dsonar.coverage.exclusions=**/*` — frontend không có tests, loại khỏi coverage gate
+- ALB sticky sessions cho frontend Ingress: `stickiness.lb_cookie.duration_seconds=86400` — tránh CSS hash mismatch khi canary
 
 ## Roadmap
+
+### Đã hoàn thành
+- ✅ 6 microservices + frontend Next.js 15
+- ✅ Docker Compose + LocalStack local dev
+- ✅ Terraform: VPC, EKS, RDS, S3, CloudFront, SQS, SNS, IAM IRSA
+- ✅ Helm charts + ArgoCD GitOps (prod + dev namespace)
+- ✅ Jenkins CI: Lint → Test → SonarQube → Trivy → ECR → GitOps
+- ✅ Dev environment: namespace `ecommerce-dev`, nhánh `develop`, Multibranch Pipeline
+- ✅ Address management (user-service + frontend profile + checkout auto-fill)
+- ✅ Canary deployment với Argo Rollouts v1.9.0 (frontend, setWeight:40)
 
 ### Đang làm tiếp theo
 1. **HTTPS/TLS**: ACM certificate + HTTPS listener trên ALB
 2. **AWS Secrets Manager + ESO**: thay plain-text password trong ConfigMap/Secret
 3. **Fix Jenkins/SonarQube**: Elastic IP cho EC2, dùng `localhost:9000` thay IP động
-4. **CloudWatch Container Insights**: log tập trung + metrics CPU/Memory
+4. **CloudWatch Container Insights + AWS X-Ray**: metrics/logs EKS + distributed tracing với ADOT collector
 
 ## Patterns đang dùng
 
@@ -400,6 +444,7 @@ done
 - **Snapshot pattern**: Lưu giá + tên sản phẩm vào OrderItem tại thời điểm mua
 - **Soft delete**: isActive = false cho sản phẩm, không hard delete
 - **SELECT FOR UPDATE**: Dùng khi decrement stock để tránh race condition
+- **Canary deployment**: Argo Rollouts `setWeight:40` + `pause:{}` cho frontend — 1 canary pod / 2 stable pods, ALB sticky sessions đảm bảo consistency per user
 
 ## Convention code
 
