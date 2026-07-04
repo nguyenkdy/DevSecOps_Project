@@ -1,4 +1,4 @@
-replicaCount: 5
+replicaCount: 3
 
 image:
   repository: 715923838470.dkr.ecr.ap-southeast-1.amazonaws.com/frontend
