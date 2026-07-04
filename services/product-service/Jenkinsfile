@@ -30,13 +30,8 @@ pipeline {
             env.SKIP = 'true'
             return
           }
-          def prev = env.GIT_PREVIOUS_COMMIT
-          if (!prev) {
-            echo "Không có previous commit — build toàn bộ"
-            return
-          }
           def changed = sh(
-            script: "git diff --name-only ${prev} ${env.GIT_COMMIT} | grep '^${env.SERVICE_DIR}/' || true",
+            script: "git diff --name-only HEAD~1 HEAD | grep '^${env.SERVICE_DIR}/' | grep -v '/Jenkinsfile\$' || true",
             returnStdout: true
           ).trim()
           if (!changed) {
