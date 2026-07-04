@@ -248,22 +248,130 @@ CREATE TABLE order_items (
 - **Dev/Test** 🔧 (chưa làm): Cùng EKS cluster, namespace `ecommerce-dev`, nhánh `develop` auto deploy
 - **Local**: Docker Compose + LocalStack, `docker compose up -d` là chạy được hết
 
-## Trạng thái production (29/06/2026)
+## Hạ tầng & Vận hành
 
-**Endpoints:**
-- Frontend: `http://k8s-ecommerc-frontend-74bcefc5c8-982823328.ap-southeast-1.elb.amazonaws.com`
-- API Gateway: `http://k8s-ecommerc-apigatew-bac50f6700-113943684.ap-southeast-1.elb.amazonaws.com`
-- ArgoCD: `http://a5909144139e1478b97145fd2f27661c-372496131.ap-southeast-1.elb.amazonaws.com`
+### Endpoints
 
-**Infrastructure:**
-- AWS Account: `715923838470`, Region: `ap-southeast-1`
-- EKS: `ecommerce-eks`, node group `ecommerce-nodes`, t3.medium On-Demand x2
-- RDS: `ecommerce-postgres.c7gyqes8qujb.ap-southeast-1.rds.amazonaws.com` (PostgreSQL 17)
-- S3: `ecommerce-product-images-715923838470`
-- CloudFront: `https://dgpidqlfdt7br.cloudfront.net`
-- Jenkins EC2: IP `13.213.43.49` (động — thay đổi khi restart, chưa có Elastic IP)
+| | Production | Dev |
+|--|------------|-----|
+| **Frontend** | http://k8s-ecommerc-frontend-74bcefc5c8-360186450.ap-southeast-1.elb.amazonaws.com | http://k8s-ecommerc-frontend-098809d8ea-1169492521.ap-southeast-1.elb.amazonaws.com |
+| **API Gateway** | http://k8s-ecommerc-apigatew-bac50f6700-1615445116.ap-southeast-1.elb.amazonaws.com | http://k8s-ecommerc-apigatew-afc7d5cc0d-1740156965.ap-southeast-1.elb.amazonaws.com |
+| **ArgoCD** | http://a5909144139e1478b97145fd2f27661c-372496131.ap-southeast-1.elb.amazonaws.com | — |
 
-**Fixes quan trọng đã áp dụng (không có trong code gốc):**
+> **Lưu ý**: ALB URL thay đổi mỗi khi terraform destroy+apply. Cần cập nhật lại `CORS_ORIGIN` (api-gateway values.yaml) và `NEXT_PUBLIC_API_URL` (frontend values.yaml) rồi trigger Jenkins rebuild frontend.
+
+### Infrastructure
+
+- **AWS Account**: `715923838470` — Region `ap-southeast-1`
+- **EKS Cluster**: `ecommerce-eks`
+- **EKS Node Group**: `ecommerce-nodes-20260702035012697100000020` (t3.medium On-Demand × 2)
+- **Namespace prod**: `ecommerce` | **Namespace dev**: `ecommerce-dev`
+- **RDS**: `ecommerce-postgres.c7gyqes8qujb.ap-southeast-1.rds.amazonaws.com` (PostgreSQL 17, db.t3.micro)
+- **RDS credentials**: `postgres` / `this_is_my_strong_password`
+- **S3 Bucket**: `ecommerce-product-images-715923838470`
+- **CloudFront**: `https://d1q28g8lb2x75x.cloudfront.net`
+- **ECR**: `715923838470.dkr.ecr.ap-southeast-1.amazonaws.com/{service}`
+- **Jenkins EC2**: IP động — lấy từ AWS Console (chưa có Elastic IP)
+
+### Databases
+
+| Database | Namespace |
+|----------|-----------|
+| `user_db`, `product_db`, `order_db`, `payment_db` | ecommerce (production) |
+| `user_db_dev`, `product_db_dev`, `order_db_dev`, `payment_db_dev` | ecommerce-dev |
+
+### Tắt / Bật môi trường (tiết kiệm chi phí)
+
+```bash
+# --- TẮT ---
+# Stop RDS (tối đa 7 ngày AWS tự start lại)
+aws rds stop-db-instance --db-instance-identifier ecommerce-postgres --region ap-southeast-1
+# Scale EKS nodes về 0
+aws eks update-nodegroup-config \
+  --cluster-name ecommerce-eks \
+  --nodegroup-name ecommerce-nodes-20260702035012697100000020 \
+  --scaling-config minSize=0,maxSize=2,desiredSize=0 \
+  --region ap-southeast-1
+
+# --- BẬT LẠI ---
+# 1. Start RDS trước (~3-5 phút)
+aws rds start-db-instance --db-instance-identifier ecommerce-postgres --region ap-southeast-1
+# 2. Scale nodes lên (chờ RDS available xong mới làm)
+aws eks update-nodegroup-config \
+  --cluster-name ecommerce-eks \
+  --nodegroup-name ecommerce-nodes-20260702035012697100000020 \
+  --scaling-config minSize=1,maxSize=2,desiredSize=2 \
+  --region ap-southeast-1
+# 3. Cập nhật kubeconfig
+aws eks update-kubeconfig --name ecommerce-eks --region ap-southeast-1
+# 4. ArgoCD tự deploy lại tất cả pods (~3-5 phút sau khi nodes ready)
+kubectl get pods -n ecommerce && kubectl get pods -n ecommerce-dev
+```
+
+> Vẫn tốn phí khi tắt: EKS control plane (~$2.4/ngày) + NAT Gateway (~$1/ngày)
+
+### K8s Secrets (phải tạo thủ công — không có trong code)
+
+```bash
+# Production — tạo secret cho từng service (ví dụ user-service)
+kubectl create secret generic user-service-secret -n ecommerce \
+  --from-literal=DATABASE_PASSWORD=this_is_my_strong_password \
+  --from-literal=JWT_ACCESS_SECRET=<32-byte-hex> \
+  --from-literal=JWT_REFRESH_SECRET=<32-byte-hex>
+
+# Dev — copy từ prod, đổi tên thành {svc}-dev-secret (Helm release name = {svc}-dev)
+for svc in user-service order-service payment-service product-service api-gateway; do
+  kubectl get secret ${svc}-secret -n ecommerce -o json \
+    | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+d['metadata'] = {'name': '${svc}-dev-secret', 'namespace': 'ecommerce-dev'}
+print(json.dumps(d))
+" | kubectl apply -f -
+done
+```
+
+> **Tại sao tên khác nhau?** Helm release tên `order-service-dev` → pod expect secret `order-service-dev-secret`. Nếu tên sai, `optional: true` trong secretRef khiến pod start mà không có DATABASE_PASSWORD → lỗi auth DB.
+
+### Rebuild từ đầu (sau terraform destroy+apply)
+
+```bash
+# 1. AWS Load Balancer Controller
+eksctl utils associate-iam-oidc-provider --cluster ecommerce-eks --approve --region ap-southeast-1
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  -n kube-system --set clusterName=ecommerce-eks \
+  --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=arn:aws:iam::715923838470:role/AmazonEKSLoadBalancerControllerRole
+
+# 2. ArgoCD
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# 3. Tạo namespaces + secrets (xem mục K8s Secrets bên trên)
+
+# 4. Apply ArgoCD apps
+kubectl apply -f infra/k8s/argocd-apps.yaml
+kubectl apply -f infra/k8s/argocd-apps-dev.yaml
+
+# 5. Tạo databases (RDS trong private VPC — phải chạy từ pod trong cluster)
+kubectl run psql-tmp --rm -it --image=postgres:17-alpine --restart=Never -n ecommerce \
+  --env="PGPASSWORD=this_is_my_strong_password" \
+  -- psql -h ecommerce-postgres.c7gyqes8qujb.ap-southeast-1.rds.amazonaws.com \
+  -U postgres -d postgres \
+  -c "CREATE DATABASE user_db" -c "CREATE DATABASE product_db" \
+  -c "CREATE DATABASE order_db" -c "CREATE DATABASE payment_db" \
+  -c "CREATE DATABASE user_db_dev" -c "CREATE DATABASE product_db_dev" \
+  -c "CREATE DATABASE order_db_dev" -c "CREATE DATABASE payment_db_dev"
+
+# 6. Migrations production
+for svc in user-service product-service order-service payment-service; do
+  kubectl exec -n ecommerce deployment/$svc -- npm run migration:run:prod
+done
+
+# 7. Cập nhật ALB URLs mới vào values.yaml, values.dev.yaml rồi trigger Jenkins rebuild frontend
+```
+
+### Fixes quan trọng đã áp dụng (không có trong code gốc)
+
 - `S3_MEDIA_BUCKET` env var (values.yaml cũ dùng `S3_BUCKET_NAME` sai tên)
 - `CLOUDFRONT_URL` đọc từ env thay vì hardcode `cdn.yourdomain.com`
 - `CORS_ORIGIN` configurable trong api-gateway cho môi trường production
@@ -271,15 +379,18 @@ CREATE TABLE order_items (
 - Xóa `ACL: 'public-read'` trong S3 PutObject (bucket mới AWS không hỗ trợ ACL)
 - `unoptimized: true` trong Next.js Image (CloudFront lo CDN, không cần Next.js proxy)
 - `imagePullPolicy: Always` trong tất cả Helm deployments
+- `NODE_ENV: production` trong backend `values.dev.yaml` — RDS PostgreSQL 17 bắt buộc SSL, TypeORM chỉ enable SSL khi `NODE_ENV === 'production'`
+- K8s secret dev phải tên `{svc}-dev-secret` (không phải `{svc}-secret`) vì Helm release name là `{svc}-dev`
+- api-gateway-dev cần override URL service: `USER_SERVICE_URL: http://user-service-dev:3001` (không phải `user-service`)
+- Jenkins git push dùng `git push origin HEAD:develop` (không phải `git push origin develop`) vì checkout tạo detached HEAD
 
 ## Roadmap
 
 ### Đang làm tiếp theo
-1. **Dev/Test environment**: namespace `ecommerce-dev`, ArgoCD ApplicationSet, trigger từ nhánh `develop`, Jenkinsfile deploy dev trước prod sau
-2. **HTTPS/TLS**: ACM certificate + HTTPS listener trên ALB
-3. **AWS Secrets Manager + ESO**: thay plain-text password trong ConfigMap
-4. **Fix Jenkins/SonarQube**: dùng `localhost:9000` thay vì IP động của EC2
-5. **CloudWatch Container Insights**: log tập trung + metrics CPU/Memory
+1. **HTTPS/TLS**: ACM certificate + HTTPS listener trên ALB
+2. **AWS Secrets Manager + ESO**: thay plain-text password trong ConfigMap/Secret
+3. **Fix Jenkins/SonarQube**: Elastic IP cho EC2, dùng `localhost:9000` thay IP động
+4. **CloudWatch Container Insights**: log tập trung + metrics CPU/Memory
 
 ## Patterns đang dùng
 

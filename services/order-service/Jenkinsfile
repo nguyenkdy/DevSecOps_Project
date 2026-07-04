@@ -195,13 +195,18 @@ pipeline {
         }
       }
       steps {
-        sh '''
-          sed -i "s|tag:.*|tag: ${IMAGE_TAG}|" infra/k8s/order-service/values.yaml || echo "values.yaml chưa tồn tại — bỏ qua GitOps update"
-          git config user.email "ci@jenkins"
-          git config user.name "Jenkins CI"
-          git commit -am "ci: update order-service to ${IMAGE_TAG}" || echo "no changes"
-          git push origin main || true
-        '''
+        withCredentials([usernamePassword(credentialsId: 'github-token', usernameVariable: 'GITHUB_USER', passwordVariable: 'GITHUB_TOKEN')]) {
+          sh '''
+            sed -i "s|tag:.*|tag: ${IMAGE_TAG}|" infra/k8s/order-service/values.yaml
+            git config user.email "ci@jenkins"
+            git config user.name "Jenkins CI"
+            git remote set-url origin https://${GITHUB_TOKEN}@github.com/nguyenkdy/DevSecOps_Project.git
+            git commit -am "ci: update order-service to ${IMAGE_TAG}" || echo "no changes"
+            git fetch origin main
+            git rebase origin/main
+            git push origin HEAD:main
+          '''
+        }
       }
     }
   }
