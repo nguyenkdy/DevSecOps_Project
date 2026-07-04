@@ -10,12 +10,11 @@
 2. [Tech Stack](#tech-stack)
 3. [Cấu trúc thư mục](#cấu-trúc-thư-mục)
 4. [Luồng CI/CD](#luồng-cicd)
-5. [Môi trường Production](#môi-trường-production)
-6. [Chạy Local](#chạy-local)
-7. [API Reference](#api-reference)
-8. [Design Patterns](#design-patterns)
-9. [Quyết định Cost](#quyết-định-cost)
-10. [Roadmap](#roadmap)
+5. [Môi trường](#môi-trường)
+6. [API Reference](#api-reference)
+7. [Design Patterns](#design-patterns)
+8. [Quyết định Cost](#quyết-định-cost)
+9. [Roadmap](#roadmap)
 
 ---
 
@@ -384,135 +383,20 @@ GitHub (infra/k8s/{service}/values.yaml)
 
 ---
 
-## Môi trường Production
+## Môi trường
 
-### Thông tin truy cập
+### URLs truy cập
 
-| | URL |
-|--|-----|
-| **Frontend** | http://k8s-ecommerc-frontend-74bcefc5c8-360186450.ap-southeast-1.elb.amazonaws.com |
-| **API Gateway** | http://k8s-ecommerc-apigatew-bac50f6700-1615445116.ap-southeast-1.elb.amazonaws.com |
-| **ArgoCD UI** | http://a5909144139e1478b97145fd2f27661c-372496131.ap-southeast-1.elb.amazonaws.com |
+| | Production | Dev |
+|--|------------|-----|
+| **Frontend** | http://k8s-ecommerc-frontend-74bcefc5c8-360186450.ap-southeast-1.elb.amazonaws.com | http://k8s-ecommerc-frontend-098809d8ea-1169492521.ap-southeast-1.elb.amazonaws.com |
+| **API Gateway** | http://k8s-ecommerc-apigatew-bac50f6700-1615445116.ap-southeast-1.elb.amazonaws.com | http://k8s-ecommerc-apigatew-afc7d5cc0d-1740156965.ap-southeast-1.elb.amazonaws.com |
+| **ArgoCD** | http://a5909144139e1478b97145fd2f27661c-372496131.ap-southeast-1.elb.amazonaws.com | — |
 
-### Infrastructure
+- **Production**: namespace `ecommerce`, nhánh `main`, EKS cluster `ecommerce-eks` (ap-southeast-1)
+- **Dev**: namespace `ecommerce-dev`, nhánh `develop`, cùng cluster — trigger tự động qua GitHub webhook → Jenkins Multibranch Pipeline
 
-| Resource | Chi tiết |
-|----------|---------|
-| **AWS Account** | `715923838470` — Region `ap-southeast-1` |
-| **EKS Cluster** | `ecommerce-cluster` — t3.medium On-Demand × 2 nodes |
-| **Namespace** | `ecommerce` |
-| **RDS** | `ecommerce-postgres.c7gyqes8qujb.ap-southeast-1.rds.amazonaws.com` (PostgreSQL 17) |
-| **S3 Bucket** | `ecommerce-product-images-715923838470` |
-| **CloudFront** | `https://dgpidqlfdt7br.cloudfront.net` |
-| **ECR** | `715923838470.dkr.ecr.ap-southeast-1.amazonaws.com/{service}` |
-| **Jenkins EC2** | `13.213.43.49` (IP động — chưa có Elastic IP) |
-
-### Trạng thái services (production)
-
-```
-kubectl get pods -n ecommerce
-
-NAME                               READY   STATUS
-api-gateway-xxx                    1/1     Running
-user-service-xxx                   1/1     Running
-product-service-xxx                1/1     Running
-order-service-xxx                  1/1     Running
-payment-service-xxx                1/1     Running
-frontend-xxx                       1/1     Running
-redis-xxx                          1/1     Running
-```
-
-### Luồng request production
-
-```
-Browser
-  │
-  ▼
-CloudFront (ảnh sản phẩm) ─────────────────► S3
-  │
-  ▼
-ALB frontend ──► Next.js pod
-                   │
-                   ├── SSR: gọi http://api-gateway:3000 (internal ClusterIP)
-                   └── CSR: gọi http://<api-gateway-ALB>/api/v1/...
-                                    │
-                                    ▼
-                             API Gateway pod
-                              (JWT + rate limit)
-                                    │
-                    ┌───────────────┼───────────────┐
-                    ▼               ▼               ▼
-               user-service   product-service  order-service
-                    │               │               │
-                  user_db       product_db       order_db
-                  Redis            S3             Redis
-                                                    │ SQS
-                                                    ▼
-                                            payment-service
-                                                payment_db
-```
-
----
-
-## Chạy Local
-
-### Yêu cầu
-- Docker Desktop (hoặc Docker Engine + Compose plugin)
-- Node.js 22 LTS (chỉ cần nếu dev không dùng Docker)
-
-### Khởi động
-
-```bash
-# Clone repo
-git clone <repo-url>
-cd DevSecOps-Project
-
-# Khởi động tất cả services + LocalStack
-docker compose up -d
-
-# Kiểm tra trạng thái
-docker compose ps
-```
-
-### Chạy migrations (lần đầu hoặc sau khi reset DB)
-
-```bash
-docker compose exec user-service    npm run migration:run
-docker compose exec product-service npm run migration:run
-docker compose exec order-service   npm run migration:run
-docker compose exec payment-service npm run migration:run
-```
-
-### Truy cập
-
-| Endpoint | URL |
-|----------|-----|
-| Frontend | http://localhost:3005 |
-| API Gateway | http://localhost:3000 |
-| Health check | http://localhost:3001/api/v1/health |
-| LocalStack (S3/SQS/SNS) | http://localhost:4566 |
-
-### Xem logs
-
-```bash
-docker compose logs -f                   # Tất cả services
-docker compose logs -f user-service      # Một service cụ thể
-```
-
-### Reset hoàn toàn
-
-```bash
-docker compose down -v     # Xóa containers + volumes
-docker compose up -d       # Khởi động lại
-# Chạy lại migrations
-```
-
-### Rebuild sau khi thay đổi dependencies
-
-```bash
-docker compose build --no-cache <service-name>
-docker compose up -d <service-name>
-```
+> Chi tiết hạ tầng, vận hành, shutdown/startup xem [CLAUDE.md](CLAUDE.md)
 
 ---
 
@@ -684,15 +568,11 @@ Jenkins CI chỉ build image và cập nhật `image.tag` trong `values.yaml` r�
 - [x] SQS async: Order → Payment decoupling
 - [x] CORS production configuration (CORS_ORIGIN env)
 - [x] Full e-commerce flow: browse → cart → checkout → QR payment → confirm
+- [x] **Dev/Test environment** — namespace `ecommerce-dev`, Jenkins Multibranch Pipeline (GitHub Branch Source + webhook), image tag `develop-{buildNum}-{sha}`, `values.dev.yaml` overlay, databases `user_db_dev`/`product_db_dev`/`order_db_dev`/`payment_db_dev`, K8s secrets `{svc}-dev-secret`, api-gateway-dev routing đến `-dev` services
 
 ### 🔧 Đang triển khai
 
-- [ ] **Dev/Test environment**
-  - Namespace `ecommerce-dev` trên cùng EKS cluster
-  - ArgoCD ApplicationSet cho dev namespace
-  - Jenkinsfile: deploy dev (nhánh `develop`) trước, production (nhánh `main`) sau
-  - RDS databases riêng (`user_db_dev`, `product_db_dev`, ...)
-  - Image tag convention: `dev-{buildNum}-{gitSha}`
+_(không có việc đang dở)_
 
 ### 📋 Kế hoạch tiếp theo
 

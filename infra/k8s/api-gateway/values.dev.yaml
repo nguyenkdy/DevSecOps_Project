@@ -1,5 +1,5 @@
 image:
-  tag: latest-dev
+  tag: develop-11-f41e124
 
 replicaCount: 1
 
@@ -13,8 +13,11 @@ resources:
 
 config:
   NODE_ENV: development
-  # Cập nhật sau khi deploy lần đầu: kubectl get ingress -n ecommerce-dev
-  CORS_ORIGIN: "PLACEHOLDER_DEV_FRONTEND_URL"
+  CORS_ORIGIN: "http://k8s-ecommerc-frontend-098809d8ea-1169492521.ap-southeast-1.elb.amazonaws.com"
+  USER_SERVICE_URL: "http://user-service-dev:3001"
+  PRODUCT_SERVICE_URL: "http://product-service-dev:3002"
+  ORDER_SERVICE_URL: "http://order-service-dev:3003"
+  PAYMENT_SERVICE_URL: "http://payment-service-dev:3004"
 
 externalSecret:
   enabled: false

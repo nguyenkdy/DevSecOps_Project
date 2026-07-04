@@ -1,5 +1,5 @@
 image:
-  tag: latest-dev
+  tag: develop-10-f41e124
 
 replicaCount: 1
 
@@ -12,7 +12,7 @@ resources:
     memory: 256Mi
 
 config:
-  NODE_ENV: development
+  NODE_ENV: production
   DATABASE_NAME: product_db_dev
   CLOUDFRONT_URL: "https://d3jt0sb314en8l.cloudfront.net"
   S3_MEDIA_BUCKET: "ecommerce-product-images-715923838470"

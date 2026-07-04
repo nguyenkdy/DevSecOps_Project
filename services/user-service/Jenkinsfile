@@ -153,7 +153,7 @@ pipeline {
       }
     }
 
-    stage('Update GitOps Manifest — Dev') {
+    stage('Update GitOps Manifest —- Dev') {
       when {
         allOf {
           expression { env.GIT_BRANCH ==~ /.*\/develop|^develop$/ }
@@ -161,14 +161,19 @@ pipeline {
         }
       }
       steps {
-        sh '''
-          DEV_TAG="develop-${IMAGE_TAG}"
-          sed -i "s|tag:.*|tag: ${DEV_TAG}|" infra/k8s/user-service/values.develop.yaml || echo "values.develop.yaml chưa tồn tại"
-          git config user.email "ci@jenkins"
-          git config user.name "Jenkins CI"
-          git commit -am "ci: update user-service develop to ${DEV_TAG}" || echo "no changes"
-          git push origin develop || true
-        '''
+        withCredentials([usernamePassword(credentialsId: 'github-token', usernameVariable: 'GITHUB_USER', passwordVariable: 'GITHUB_TOKEN')]) {
+          sh '''
+            DEV_TAG="develop-${IMAGE_TAG}"
+            sed -i "s|tag:.*|tag: ${DEV_TAG}|" infra/k8s/user-service/values.dev.yaml
+            git config user.email "ci@jenkins"
+            git config user.name "Jenkins CI"
+            git remote set-url origin https://${GITHUB_TOKEN}@github.com/nguyenkdy/DevSecOps_Project.git
+            git commit -am "ci: update user-service develop to ${DEV_TAG}" || echo "no changes"
+            git fetch origin develop
+            git rebase origin/develop
+            git push origin HEAD:develop
+          '''
+        }
       }
     }
 
@@ -210,13 +215,18 @@ pipeline {
         }
       }
       steps {
-        sh '''
-          sed -i "s|tag:.*|tag: ${IMAGE_TAG}|" infra/k8s/user-service/values.yaml || echo "values.yaml chưa tồn tại — bỏ qua GitOps update"
-          git config user.email "ci@jenkins"
-          git config user.name "Jenkins CI"
-          git commit -am "ci: update user-service to ${IMAGE_TAG}" || echo "no changes"
-          git push origin main || true
-        '''
+        withCredentials([usernamePassword(credentialsId: 'github-token', usernameVariable: 'GITHUB_USER', passwordVariable: 'GITHUB_TOKEN')]) {
+          sh '''
+            sed -i "s|tag:.*|tag: ${IMAGE_TAG}|" infra/k8s/user-service/values.yaml
+            git config user.email "ci@jenkins"
+            git config user.name "Jenkins CI"
+            git remote set-url origin https://${GITHUB_TOKEN}@github.com/nguyenkdy/DevSecOps_Project.git
+            git commit -am "ci: update user-service to ${IMAGE_TAG}" || echo "no changes"
+            git fetch origin main
+            git rebase origin/main
+            git push origin HEAD:main
+          '''
+        }
       }
     }
   }
@@ -235,3 +245,7 @@ pipeline {
     failure { echo "Pipeline thất bại — kiểm tra log" }
   }
 }
+
+// trigger dev build
+
+// rebuild after disk cleanup
