@@ -24,6 +24,12 @@ pipeline {
     stage('Detect Changes') {
       steps {
         script {
+          def commitMsg = sh(script: 'git log -1 --pretty=%B', returnStdout: true).trim()
+          if (commitMsg.contains('[skip ci]')) {
+            echo "Jenkins manifest commit — bỏ qua pipeline"
+            env.SKIP = 'true'
+            return
+          }
           def prev = env.GIT_PREVIOUS_COMMIT
           if (!prev) {
             echo "Không có previous commit — build toàn bộ"
@@ -149,7 +155,7 @@ pipeline {
             git config user.email "ci@jenkins"
             git config user.name "Jenkins CI"
             git remote set-url origin https://${GITHUB_TOKEN}@github.com/nguyenkdy/DevSecOps_Project.git
-            git commit -am "ci: update product-service develop to ${DEV_TAG}" || echo "no changes"
+            git commit -am "ci: update product-service develop to ${DEV_TAG} [skip ci]" || echo "no changes"
             git fetch origin develop
             git rebase origin/develop
             git push origin HEAD:develop
@@ -202,7 +208,7 @@ pipeline {
             git config user.email "ci@jenkins"
             git config user.name "Jenkins CI"
             git remote set-url origin https://${GITHUB_TOKEN}@github.com/nguyenkdy/DevSecOps_Project.git
-            git commit -am "ci: update product-service to ${IMAGE_TAG}" || echo "no changes"
+            git commit -am "ci: update product-service to ${IMAGE_TAG} [skip ci]" || echo "no changes"
             git fetch origin main
             git rebase origin/main
             git push origin HEAD:main
