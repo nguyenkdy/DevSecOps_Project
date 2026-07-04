@@ -3,7 +3,10 @@ import {
   Get,
   Put,
   Post,
+  Patch,
+  Delete,
   Body,
+  Param,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -11,6 +14,7 @@ import {
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateAddressDto } from './dto/create-address.dto';
+import { UpdateAddressDto } from './dto/update-address.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, AuthUser } from '../auth/decorators/current-user.decorator';
 
@@ -39,6 +43,21 @@ export class UsersController {
   @HttpCode(HttpStatus.CREATED)
   addAddress(@CurrentUser('userId') userId: string, @Body() dto: CreateAddressDto) {
     return this.usersService.addAddress(userId, dto);
+  }
+
+  @Patch('me/addresses/:id')
+  updateAddress(
+    @CurrentUser('userId') userId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateAddressDto,
+  ) {
+    return this.usersService.updateAddress(userId, id, dto);
+  }
+
+  @Delete('me/addresses/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteAddress(@CurrentUser('userId') userId: string, @Param('id') id: string) {
+    return this.usersService.deleteAddress(userId, id);
   }
 
   @Get('me/wallet')

@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { authApi, walletApi } from '@/lib/api';
+import { authApi, walletApi, addressesApi, Address } from '@/lib/api';
 import { formatVND } from '@/lib/utils';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/LoadingSpinner';
+
+const emptyForm = { fullName: '', phone: '', addressLine: '', city: '', isDefault: false };
 
 export default function ProfilePage() {
   const { isAuthenticated, isLoading, user, setUser } = useAuth();
@@ -20,6 +22,13 @@ export default function ProfilePage() {
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [toppingUp, setToppingUp] = useState(false);
   const [topupMsg, setTopupMsg] = useState('');
+
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [addrForm, setAddrForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [showAddrForm, setShowAddrForm] = useState(false);
+  const [addrMsg, setAddrMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [addrSaving, setAddrSaving] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -37,6 +46,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (isAuthenticated) {
       walletApi.getBalance().then((r) => setWalletBalance(r.balance)).catch(() => {});
+      addressesApi.list().then(setAddresses).catch(() => {});
     }
   }, [isAuthenticated]);
 
@@ -72,6 +82,67 @@ export default function ProfilePage() {
     }
   };
 
+  const openAddForm = () => {
+    setEditingId(null);
+    setAddrForm(emptyForm);
+    setAddrMsg(null);
+    setShowAddrForm(true);
+  };
+
+  const openEditForm = (addr: Address) => {
+    setEditingId(addr.id);
+    setAddrForm({ fullName: addr.fullName, phone: addr.phone, addressLine: addr.addressLine, city: addr.city, isDefault: addr.isDefault });
+    setAddrMsg(null);
+    setShowAddrForm(true);
+  };
+
+  const handleAddrSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddrSaving(true);
+    setAddrMsg(null);
+    try {
+      if (editingId) {
+        const updated = await addressesApi.update(editingId, addrForm);
+        setAddresses((prev) => prev.map((a) => {
+          if (addrForm.isDefault) return { ...a, isDefault: a.id === updated.id };
+          return a.id === updated.id ? updated : a;
+        }));
+      } else {
+        const created = await addressesApi.create(addrForm);
+        setAddresses((prev) => {
+          const list = addrForm.isDefault ? prev.map((a) => ({ ...a, isDefault: false })) : prev;
+          return [created, ...list];
+        });
+      }
+      setAddrMsg({ type: 'success', text: editingId ? 'Cập nhật địa chỉ thành công!' : 'Thêm địa chỉ thành công!' });
+      setShowAddrForm(false);
+      setEditingId(null);
+    } catch {
+      setAddrMsg({ type: 'error', text: 'Lưu địa chỉ thất bại, vui lòng thử lại' });
+    } finally {
+      setAddrSaving(false);
+    }
+  };
+
+  const handleSetDefault = async (addr: Address) => {
+    try {
+      await addressesApi.update(addr.id, { isDefault: true });
+      setAddresses((prev) => prev.map((a) => ({ ...a, isDefault: a.id === addr.id })));
+    } catch {
+      setAddrMsg({ type: 'error', text: 'Không thể đặt địa chỉ mặc định' });
+    }
+  };
+
+  const handleDeleteAddr = async (id: string) => {
+    if (!confirm('Xóa địa chỉ này?')) return;
+    try {
+      await addressesApi.delete(id);
+      setAddresses((prev) => prev.filter((a) => a.id !== id));
+    } catch {
+      setAddrMsg({ type: 'error', text: 'Xóa địa chỉ thất bại' });
+    }
+  };
+
   return (
     <div className="max-w-lg mx-auto px-4 py-8 space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Thông tin cá nhân</h1>
@@ -82,7 +153,6 @@ export default function ProfilePage() {
           <h2 className="font-semibold text-gray-900">💰 Ví EcomPay</h2>
           <span className="text-xs text-gray-400">Dùng để thanh toán đơn hàng</span>
         </div>
-
         <div className="flex items-center justify-between mt-4">
           <div>
             <p className="text-sm text-gray-500">Số dư hiện tại</p>
@@ -90,22 +160,15 @@ export default function ProfilePage() {
               {walletBalance !== null ? formatVND(walletBalance) : '---'}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleTopUp}
-            disabled={toppingUp}
-            className="btn-primary px-5 py-2 text-sm"
-          >
+          <button type="button" onClick={handleTopUp} disabled={toppingUp} className="btn-primary px-5 py-2 text-sm">
             {toppingUp ? 'Đang nạp...' : '+ Nạp 500.000 ₫'}
           </button>
         </div>
-
         {topupMsg && (
           <p className={`text-sm mt-3 ${topupMsg.includes('thành công') ? 'text-green-600' : 'text-red-500'}`}>
             {topupMsg}
           </p>
         )}
-
         <p className="text-xs text-gray-400 mt-3">
           Demo: mỗi lần nạp +500.000 ₫. Số dư được trừ tự động khi thanh toán bằng EcomPay.
         </p>
@@ -131,41 +194,95 @@ export default function ProfilePage() {
         <form onSubmit={handleSubmit} className="space-y-4 mt-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
-            <input
-              type="text"
-              required
-              className="input-field"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-            />
+            <input type="text" required className="input-field" value={fullName} onChange={(e) => setFullName(e.target.value)} />
           </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input
-              type="email"
-              disabled
-              className="input-field bg-gray-50 cursor-not-allowed"
-              value={user.email}
-            />
+            <input type="email" disabled className="input-field bg-gray-50 cursor-not-allowed" value={user.email} />
             <p className="text-xs text-gray-400 mt-1">Email không thể thay đổi</p>
           </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
-            <input
-              type="tel"
-              className="input-field"
-              placeholder="0912345678"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
+            <input type="tel" className="input-field" placeholder="0912345678" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </div>
-
           <button type="submit" disabled={saving} className="btn-primary w-full">
             {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
           </button>
         </form>
+      </div>
+
+      {/* Địa chỉ giao hàng */}
+      <div className="card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-gray-900">📍 Địa chỉ giao hàng</h2>
+          <button type="button" onClick={openAddForm} className="text-sm text-blue-600 hover:underline">
+            + Thêm địa chỉ
+          </button>
+        </div>
+
+        {addrMsg && <Alert type={addrMsg.type} message={addrMsg.text} />}
+
+        {showAddrForm && (
+          <form onSubmit={handleAddrSubmit} className="space-y-3 mb-4 p-4 bg-gray-50 rounded-lg">
+            <p className="font-medium text-sm text-gray-700">{editingId ? 'Cập nhật địa chỉ' : 'Thêm địa chỉ mới'}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className="block text-xs text-gray-600 mb-1">Họ và tên *</label>
+                <input required className="input-field text-sm" value={addrForm.fullName} onChange={(e) => setAddrForm({ ...addrForm, fullName: e.target.value })} />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs text-gray-600 mb-1">Số điện thoại *</label>
+                <input required className="input-field text-sm" placeholder="0912345678" value={addrForm.phone} onChange={(e) => setAddrForm({ ...addrForm, phone: e.target.value })} />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs text-gray-600 mb-1">Địa chỉ *</label>
+                <input required className="input-field text-sm" placeholder="Số nhà, tên đường, phường/xã, quận/huyện" value={addrForm.addressLine} onChange={(e) => setAddrForm({ ...addrForm, addressLine: e.target.value })} />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs text-gray-600 mb-1">Tỉnh/Thành phố *</label>
+                <input required className="input-field text-sm" placeholder="Hà Nội, TP.HCM..." value={addrForm.city} onChange={(e) => setAddrForm({ ...addrForm, city: e.target.value })} />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input type="checkbox" checked={addrForm.isDefault} onChange={(e) => setAddrForm({ ...addrForm, isDefault: e.target.checked })} />
+              Đặt làm địa chỉ mặc định
+            </label>
+            <div className="flex gap-2">
+              <button type="submit" disabled={addrSaving} className="btn-primary text-sm px-4 py-2">
+                {addrSaving ? 'Đang lưu...' : 'Lưu'}
+              </button>
+              <button type="button" onClick={() => { setShowAddrForm(false); setEditingId(null); }} className="text-sm px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Hủy
+              </button>
+            </div>
+          </form>
+        )}
+
+        {addresses.length === 0 && !showAddrForm ? (
+          <p className="text-sm text-gray-400 text-center py-4">Chưa có địa chỉ nào. Thêm địa chỉ để thanh toán nhanh hơn.</p>
+        ) : (
+          <div className="space-y-3">
+            {addresses.map((addr) => (
+              <div key={addr.id} className={`p-3 rounded-lg border ${addr.isDefault ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="text-sm">
+                    <p className="font-medium text-gray-900">{addr.fullName} · {addr.phone}</p>
+                    <p className="text-gray-600 mt-0.5">{addr.addressLine}</p>
+                    <p className="text-gray-600">{addr.city}</p>
+                    {addr.isDefault && <span className="text-xs text-blue-600 font-medium mt-1 inline-block">Mặc định</span>}
+                  </div>
+                  <div className="flex flex-col gap-1 shrink-0 text-xs">
+                    <button type="button" onClick={() => openEditForm(addr)} className="text-blue-600 hover:underline">Sửa</button>
+                    {!addr.isDefault && (
+                      <button type="button" onClick={() => handleSetDefault(addr)} className="text-gray-500 hover:underline">Mặc định</button>
+                    )}
+                    <button type="button" onClick={() => handleDeleteAddr(addr.id)} className="text-red-500 hover:underline">Xóa</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

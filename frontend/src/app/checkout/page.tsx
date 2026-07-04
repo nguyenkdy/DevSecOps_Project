@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { ordersApi, walletApi } from '@/lib/api';
+import { ordersApi, walletApi, addressesApi, Address } from '@/lib/api';
 import { formatVND } from '@/lib/utils';
 import { Alert } from '@/components/ui/Alert';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -20,6 +20,8 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<'ecompay' | 'momo' | 'cod'>('ecompay');
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [toppingUp, setToppingUp] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>('');
 
   const [address, setAddress] = useState({
     street: '',
@@ -32,6 +34,14 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (isAuthenticated) {
       walletApi.getBalance().then((r) => setWalletBalance(r.balance)).catch(() => {});
+      addressesApi.list().then((list) => {
+        setSavedAddresses(list);
+        const def = list.find((a) => a.isDefault) ?? list[0];
+        if (def) {
+          setSelectedAddressId(def.id);
+          setAddress({ street: def.addressLine, ward: '', district: '', city: def.city, zipCode: '' });
+        }
+      }).catch(() => {});
     }
   }, [isAuthenticated]);
 
@@ -108,6 +118,34 @@ export default function CheckoutPage() {
             {/* Shipping */}
             <div className="card p-5">
               <h2 className="font-semibold text-gray-900 mb-4">Địa chỉ giao hàng</h2>
+
+              {savedAddresses.length > 0 && (
+                <div className="mb-4">
+                  <label className="block text-sm text-gray-600 mb-1">Chọn địa chỉ đã lưu</label>
+                  <select
+                    className="input-field"
+                    value={selectedAddressId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setSelectedAddressId(id);
+                      if (id === '') {
+                        setAddress({ street: '', ward: '', district: '', city: '', zipCode: '' });
+                      } else {
+                        const found = savedAddresses.find((a) => a.id === id);
+                        if (found) setAddress({ street: found.addressLine, ward: '', district: '', city: found.city, zipCode: '' });
+                      }
+                    }}
+                  >
+                    {savedAddresses.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.fullName} · {a.addressLine}, {a.city}{a.isDefault ? ' (Mặc định)' : ''}
+                      </option>
+                    ))}
+                    <option value="">Nhập địa chỉ mới...</option>
+                  </select>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
                   <label className="block text-sm text-gray-600 mb-1">Địa chỉ *</label>
