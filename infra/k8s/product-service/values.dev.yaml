@@ -14,8 +14,9 @@ resources:
 config:
   NODE_ENV: production
   DATABASE_NAME: product_db_dev
-  CLOUDFRONT_URL: "https://d3jt0sb314en8l.cloudfront.net"
+  CLOUDFRONT_URL: "https://d1q28g8lb2x75x.cloudfront.net"
   S3_MEDIA_BUCKET: "ecommerce-product-images-715923838470"
+  S3_KEY_PREFIX: "dev"
 
 externalSecret:
   enabled: false
