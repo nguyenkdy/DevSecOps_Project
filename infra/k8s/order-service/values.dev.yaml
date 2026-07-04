@@ -1,5 +1,5 @@
 image:
-  tag: develop-11-f41e124
+  tag: develop-21-52c05d8
 
 replicaCount: 1
 
@@ -14,6 +14,7 @@ resources:
 config:
   NODE_ENV: production
   DATABASE_NAME: order_db_dev
+  PRODUCT_SERVICE_URL: "http://product-service-dev:3002"
 
 externalSecret:
   enabled: false

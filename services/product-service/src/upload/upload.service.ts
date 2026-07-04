@@ -16,12 +16,14 @@ export class UploadService {
   private readonly s3: S3Client;
   private readonly bucket: string;
   private readonly cdnBase: string;
+  private readonly keyPrefix: string;
 
   constructor(private readonly config: ConfigService) {
     const isLocal = config.get<string>('nodeEnv') !== 'production';
     const endpoint = config.get<string>('aws.endpoint');
 
     this.bucket = config.get<string>('aws.mediaBucket') ?? 'ecom-media-dev';
+    this.keyPrefix = config.get<string>('aws.keyPrefix') ?? '';
     this.s3 = new S3Client({
       region: config.get<string>('aws.region'),
       ...(isLocal && endpoint && {
@@ -52,7 +54,8 @@ export class UploadService {
     }
 
     const ext = file.originalname.split('.').pop() ?? 'jpg';
-    const key = `${folder}/${uuidv4()}.${ext}`;
+    const prefixedFolder = this.keyPrefix ? `${this.keyPrefix}/${folder}` : folder;
+    const key = `${prefixedFolder}/${uuidv4()}.${ext}`;
 
     await this.s3.send(
       new PutObjectCommand({

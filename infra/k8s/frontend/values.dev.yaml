@@ -1,5 +1,5 @@
 image:
-  tag: develop-17-232ea16
+  tag: develop-21-52c05d8
 
 replicaCount: 1
 
@@ -13,7 +13,9 @@ resources:
 
 config:
   NODE_ENV: development
-  # Cập nhật sau khi deploy lần đầu: kubectl get ingress -n ecommerce-dev
+  # SSR server-side dùng internal K8s service (không qua ALB)
+  API_URL: "http://api-gateway-dev:3000"
+  # Client-side browser dùng ALB URL (cập nhật nếu ALB thay đổi)
   NEXT_PUBLIC_API_URL: "http://k8s-ecommerc-apigatew-afc7d5cc0d-1740156965.ap-southeast-1.elb.amazonaws.com"
 
 externalSecret:

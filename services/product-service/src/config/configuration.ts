@@ -14,6 +14,7 @@ export default () => ({
     mediaBucket: process.env.S3_MEDIA_BUCKET || 'ecom-media-dev',
     staticBucket: process.env.S3_STATIC_BUCKET || 'ecom-static-dev',
     cloudfrontUrl: process.env.CLOUDFRONT_URL || '',
+    keyPrefix: process.env.S3_KEY_PREFIX || '',
   },
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET || 'dev_access_secret',

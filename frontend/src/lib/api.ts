@@ -161,6 +161,30 @@ export const ordersApi = {
   getById: (id: string) => apiFetch<any>(`/api/v1/orders/${id}`),
 };
 
+// ─── Addresses ────────────────────────────────────────────────────────────────
+
+export interface Address {
+  id: string;
+  fullName: string;
+  phone: string;
+  addressLine: string;
+  city: string;
+  isDefault: boolean;
+}
+
+export const addressesApi = {
+  list: () => apiFetch<Address[]>('/api/v1/users/me/addresses'),
+
+  create: (body: Omit<Address, 'id' | 'isDefault'> & { isDefault?: boolean }) =>
+    apiFetch<Address>('/api/v1/users/me/addresses', { method: 'POST', body: JSON.stringify(body) }),
+
+  update: (id: string, body: Partial<Omit<Address, 'id'>>) =>
+    apiFetch<Address>(`/api/v1/users/me/addresses/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  delete: (id: string) =>
+    apiFetch<void>(`/api/v1/users/me/addresses/${id}`, { method: 'DELETE' }),
+};
+
 // ─── Wallet ───────────────────────────────────────────────────────────────────
 
 export const walletApi = {

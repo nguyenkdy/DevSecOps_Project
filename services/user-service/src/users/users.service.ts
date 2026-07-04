@@ -10,6 +10,7 @@ import { User } from './entities/user.entity';
 import { Address } from './entities/address.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateAddressDto } from './dto/create-address.dto';
+import { UpdateAddressDto } from './dto/update-address.dto';
 
 export interface UserResponse {
   id: string;
@@ -89,6 +90,22 @@ export class UsersService {
     }
     const address = this.addressRepo.create({ ...dto, userId });
     return this.addressRepo.save(address);
+  }
+
+  async updateAddress(userId: string, addressId: string, dto: UpdateAddressDto): Promise<Address> {
+    const address = await this.addressRepo.findOne({ where: { id: addressId, userId } });
+    if (!address) throw new NotFoundException('Địa chỉ không tồn tại');
+    if (dto.isDefault) {
+      await this.addressRepo.update({ userId }, { isDefault: false });
+    }
+    Object.assign(address, dto);
+    return this.addressRepo.save(address);
+  }
+
+  async deleteAddress(userId: string, addressId: string): Promise<void> {
+    const address = await this.addressRepo.findOne({ where: { id: addressId, userId } });
+    if (!address) throw new NotFoundException('Địa chỉ không tồn tại');
+    await this.addressRepo.remove(address);
   }
 
   async getWalletBalance(userId: string): Promise<number> {
