@@ -148,8 +148,9 @@ export default function CheckoutPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
-                  <label className="block text-sm text-gray-600 mb-1">Địa chỉ *</label>
+                  <label htmlFor="ship-street" className="block text-sm text-gray-600 mb-1">Địa chỉ *</label>
                   <input
+                    id="ship-street"
                     required
                     className="input-field"
                     placeholder="Số nhà, tên đường"
@@ -158,8 +159,9 @@ export default function CheckoutPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">Phường/Xã *</label>
+                  <label htmlFor="ship-ward" className="block text-sm text-gray-600 mb-1">Phường/Xã *</label>
                   <input
+                    id="ship-ward"
                     required
                     className="input-field"
                     value={address.ward}
@@ -167,8 +169,9 @@ export default function CheckoutPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">Quận/Huyện *</label>
+                  <label htmlFor="ship-district" className="block text-sm text-gray-600 mb-1">Quận/Huyện *</label>
                   <input
+                    id="ship-district"
                     required
                     className="input-field"
                     value={address.district}
@@ -176,8 +179,9 @@ export default function CheckoutPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">Tỉnh/Thành phố *</label>
+                  <label htmlFor="ship-city" className="block text-sm text-gray-600 mb-1">Tỉnh/Thành phố *</label>
                   <input
+                    id="ship-city"
                     required
                     className="input-field"
                     placeholder="Hà Nội, TP.HCM..."
@@ -186,8 +190,9 @@ export default function CheckoutPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">Mã bưu điện</label>
+                  <label htmlFor="ship-zip" className="block text-sm text-gray-600 mb-1">Mã bưu điện</label>
                   <input
+                    id="ship-zip"
                     className="input-field"
                     value={address.zipCode}
                     onChange={(e) => setAddress({ ...address, zipCode: e.target.value })}

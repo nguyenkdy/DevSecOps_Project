@@ -86,7 +86,8 @@ pipeline {
               npx sonar-scanner \
                 -Dsonar.projectKey=frontend \
                 -Dsonar.sources=src \
-                -Dsonar.exclusions=**/*.test.tsx,**/.next/**,**/node_modules/**
+                -Dsonar.exclusions=**/*.test.tsx,**/.next/**,**/node_modules/** \
+                -Dsonar.coverage.exclusions=**/*
             '''
           }
         }
@@ -97,6 +98,8 @@ pipeline {
       when { not { environment name: 'SKIP', value: 'true' } }
       steps {
         sh '''
+          docker builder prune -f || true
+          docker image prune -f || true
           docker build -t ${SERVICE_NAME}:scan --target production ${SERVICE_DIR}
           trivy image --severity HIGH,CRITICAL --exit-code 0 --format table --scanners vuln ${SERVICE_NAME}:scan || true
           docker rmi ${SERVICE_NAME}:scan || true

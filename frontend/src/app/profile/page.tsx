@@ -96,7 +96,7 @@ export default function ProfilePage() {
     setShowAddrForm(true);
   };
 
-  const handleAddrSubmit = async (e: React.FormEvent) => {
+  const handleAddrSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setAddrSaving(true);
     setAddrMsg(null);
@@ -227,20 +227,20 @@ export default function ProfilePage() {
             <p className="font-medium text-sm text-gray-700">{editingId ? 'Cập nhật địa chỉ' : 'Thêm địa chỉ mới'}</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
-                <label className="block text-xs text-gray-600 mb-1">Họ và tên *</label>
-                <input required className="input-field text-sm" value={addrForm.fullName} onChange={(e) => setAddrForm({ ...addrForm, fullName: e.target.value })} />
+                <label htmlFor="addr-fullname" className="block text-xs text-gray-600 mb-1">Họ và tên *</label>
+                <input id="addr-fullname" required className="input-field text-sm" value={addrForm.fullName} onChange={(e) => setAddrForm({ ...addrForm, fullName: e.target.value })} />
               </div>
               <div className="col-span-2">
-                <label className="block text-xs text-gray-600 mb-1">Số điện thoại *</label>
-                <input required className="input-field text-sm" placeholder="0912345678" value={addrForm.phone} onChange={(e) => setAddrForm({ ...addrForm, phone: e.target.value })} />
+                <label htmlFor="addr-phone" className="block text-xs text-gray-600 mb-1">Số điện thoại *</label>
+                <input id="addr-phone" required className="input-field text-sm" placeholder="0912345678" value={addrForm.phone} onChange={(e) => setAddrForm({ ...addrForm, phone: e.target.value })} />
               </div>
               <div className="col-span-2">
-                <label className="block text-xs text-gray-600 mb-1">Địa chỉ *</label>
-                <input required className="input-field text-sm" placeholder="Số nhà, tên đường, phường/xã, quận/huyện" value={addrForm.addressLine} onChange={(e) => setAddrForm({ ...addrForm, addressLine: e.target.value })} />
+                <label htmlFor="addr-line" className="block text-xs text-gray-600 mb-1">Địa chỉ *</label>
+                <input id="addr-line" required className="input-field text-sm" placeholder="Số nhà, tên đường, phường/xã, quận/huyện" value={addrForm.addressLine} onChange={(e) => setAddrForm({ ...addrForm, addressLine: e.target.value })} />
               </div>
               <div className="col-span-2">
-                <label className="block text-xs text-gray-600 mb-1">Tỉnh/Thành phố *</label>
-                <input required className="input-field text-sm" placeholder="Hà Nội, TP.HCM..." value={addrForm.city} onChange={(e) => setAddrForm({ ...addrForm, city: e.target.value })} />
+                <label htmlFor="addr-city" className="block text-xs text-gray-600 mb-1">Tỉnh/Thành phố *</label>
+                <input id="addr-city" required className="input-field text-sm" placeholder="Hà Nội, TP.HCM..." value={addrForm.city} onChange={(e) => setAddrForm({ ...addrForm, city: e.target.value })} />
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
