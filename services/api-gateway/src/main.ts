@@ -18,6 +18,9 @@ async function bootstrap() {
   const jwtService = app.get(JwtService);
   const logger = new Logger('Bootstrap');
 
+  // Trust X-Forwarded-For từ ALB để rate limit đúng IP client thật
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   // ─── CORS ──────────────────────────────────────────────────────────────────
   const corsOrigin = config.get<string>('corsOrigin');
   app.enableCors({
