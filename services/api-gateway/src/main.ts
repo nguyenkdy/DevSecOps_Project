@@ -119,7 +119,7 @@ async function bootstrap() {
 
   const port = config.get<number>('port') ?? 3000;
   await app.listen(port);
-  logger.log(`API Gateway đang chạy tại http://localhost:${port}/api/v1`);
+  logger.log(`API Gateway running on port ${port}`);
   logger.log(`Upstream services:`);
   logger.log(`  user-service    → ${services.userService}`);
   logger.log(`  product-service → ${services.productService}`);
