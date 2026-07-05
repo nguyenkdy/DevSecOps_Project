@@ -187,3 +187,74 @@ resource "aws_iam_role_policy_attachment" "user_service_secrets" {
   role       = aws_iam_role.user_service.name
   policy_arn = aws_iam_policy.secrets_read.arn
 }
+
+# ─── IRSA: CloudWatch Container Insights agent ──────────────────────────────
+# Amazon CloudWatch Observability addon dùng service account này để ghi metrics
+# và logs của tất cả pods lên CloudWatch
+
+data "aws_iam_policy_document" "cloudwatch_agent_assume" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    principals {
+      type        = "Federated"
+      identifiers = [local.oidc_provider_arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_provider_url}:sub"
+      values   = ["system:serviceaccount:amazon-cloudwatch:cloudwatch-agent"]
+    }
+  }
+}
+
+resource "aws_iam_role" "cloudwatch_agent" {
+  name               = "${var.project_name}-cloudwatch-agent-role"
+  assume_role_policy = data.aws_iam_policy_document.cloudwatch_agent_assume.json
+
+  tags = { Project = var.project_name }
+}
+
+resource "aws_iam_role_policy_attachment" "cloudwatch_agent_server_policy" {
+  role       = aws_iam_role.cloudwatch_agent.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+}
+
+# ─── IRSA: ADOT Collector → AWS X-Ray + CloudWatch Logs ─────────────────────
+# ADOT DaemonSet nhận traces từ các microservice qua OTLP (port 4318)
+# rồi forward lên X-Ray và CloudWatch Logs
+
+data "aws_iam_policy_document" "adot_collector_assume" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    principals {
+      type        = "Federated"
+      identifiers = [local.oidc_provider_arn]
+    }
+    condition {
+      test     = "StringLike"
+      variable = "${local.oidc_provider_url}:sub"
+      # Hỗ trợ cả opentelemetry-operator-system lẫn custom namespace
+      values = [
+        "system:serviceaccount:opentelemetry-operator-system:*",
+        "system:serviceaccount:amazon-metrics:*",
+      ]
+    }
+  }
+}
+
+resource "aws_iam_role" "adot_collector" {
+  name               = "${var.project_name}-adot-collector-role"
+  assume_role_policy = data.aws_iam_policy_document.adot_collector_assume.json
+
+  tags = { Project = var.project_name }
+}
+
+resource "aws_iam_role_policy_attachment" "adot_xray" {
+  role       = aws_iam_role.adot_collector.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "adot_cloudwatch" {
+  role       = aws_iam_role.adot_collector.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+}

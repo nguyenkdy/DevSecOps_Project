@@ -61,6 +61,16 @@ output "irsa_user_service_role_arn" {
   value = aws_iam_role.user_service.arn
 }
 
+output "irsa_cloudwatch_agent_role_arn" {
+  description = "IAM Role ARN cho CloudWatch Container Insights agent"
+  value       = aws_iam_role.cloudwatch_agent.arn
+}
+
+output "irsa_adot_collector_role_arn" {
+  description = "IAM Role ARN cho ADOT Collector (X-Ray + CloudWatch Logs)"
+  value       = aws_iam_role.adot_collector.arn
+}
+
 output "kubectl_config_command" {
   description = "Chạy lệnh này để cấu hình kubectl sau khi EKS tạo xong"
   value       = "aws eks update-kubeconfig --region ${var.aws_region} --name ${module.eks.cluster_name}"

@@ -14,14 +14,27 @@ module "eks" {
   create_kms_key            = false
   cluster_encryption_config = {}
 
-  # Tắt CloudWatch logging — tránh cần quyền logs:CreateLogGroup, tiết kiệm cost
-  cluster_enabled_log_types   = []
-  create_cloudwatch_log_group = false
+  # Bật CloudWatch control plane logging — cần cho audit trail và troubleshooting
+  cluster_enabled_log_types   = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+  create_cloudwatch_log_group = true
+  cloudwatch_log_group_retention_in_days = 30
 
   cluster_addons = {
     coredns    = { most_recent = true }
     kube-proxy = { most_recent = true }
     vpc-cni    = { most_recent = true }
+
+    # CloudWatch Container Insights — metrics CPU/memory/network + logs từ tất cả pods
+    amazon-cloudwatch-observability = {
+      most_recent              = true
+      service_account_role_arn = aws_iam_role.cloudwatch_agent.arn
+    }
+
+    # AWS Distro for OpenTelemetry — thu thập traces gửi lên X-Ray
+    adot = {
+      most_recent              = true
+      service_account_role_arn = aws_iam_role.adot_collector.arn
+    }
   }
 
   eks_managed_node_groups = {

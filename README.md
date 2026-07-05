@@ -113,18 +113,23 @@ Bất đồng bộ (AWS):
 ### Infrastructure & DevSecOps
 | Công nghệ | Mục đích |
 |-----------|---------|
-| AWS EKS | Kubernetes cluster (t3.medium On-Demand) |
+| AWS EKS | Kubernetes cluster (t3.medium On-Demand × 3) |
 | AWS RDS PostgreSQL 17 | Managed database |
 | AWS S3 + CloudFront | Product image storage + CDN |
 | AWS SQS + SNS | Async messaging |
 | AWS SES | Email service |
 | AWS ECR | Docker image registry |
 | AWS Secrets Manager | Secret management |
+| AWS CloudWatch Container Insights | Metrics CPU/memory/network + logs tất cả pods |
+| AWS X-Ray | Distributed tracing — visualize request qua microservices |
+| AWS ADOT (OpenTelemetry) | Collector nhận traces từ services, forward lên X-Ray |
+| OpenTelemetry SDK | Instrumentation trong mỗi NestJS service (`tracing.ts`) |
 | Terraform | Infrastructure as Code |
 | Helm | Kubernetes package manager |
 | ArgoCD | GitOps continuous delivery |
-| Jenkins | CI pipeline |
-| SonarQube | Static code analysis (SAST) |
+| Argo Rollouts | Canary deployment cho frontend |
+| Jenkins | CI pipeline (SonarQube Quality Gate + Trivy) |
+| SonarQube | Static code analysis (SAST) — Quality Gate enforce trên mọi PR |
 | Trivy | Container image security scan |
 | Docker Compose + LocalStack | Local development |
 
@@ -548,14 +553,14 @@ ALB sticky sessions (`stickiness.lb_cookie`) đảm bảo mỗi user luôn hit c
 | ElastiCache Redis | ❌ → Redis pod trong EKS | Tiết kiệm ~$12/tháng |
 | OpenSearch | ❌ → PostgreSQL FTS | Tiết kiệm ~$25/tháng, đủ cho 10k sản phẩm |
 | Cognito | ❌ → JWT tự build | Hiểu sâu hơn, không vendor lock-in |
-| EKS | ✅ On-Demand t3.medium × 2 | Bắt buộc cho đề tài DevSecOps |
+| EKS | ✅ On-Demand t3.medium × 3 | 3 nodes để chạy đủ 6 services + monitoring stack |
 | Lambda | ✅ | Free tier 1M invocations/tháng |
 | S3 + CloudFront | ✅ | Gần miễn phí với traffic thấp |
 | SQS + SNS | ✅ | Free tier 1M requests/tháng |
 | SES | ✅ | 62k email/tháng miễn phí |
 | Secrets Manager | ✅ | Bắt buộc cho DevSecOps |
 
-**Chi phí ước tính production:** ~$80–100/tháng (chủ yếu là EKS worker nodes + RDS)
+**Chi phí ước tính production:** ~$110–130/tháng (3 × t3.medium ~$90 + RDS db.t3.micro ~$15 + NAT Gateway + CloudWatch Logs)
 
 ---
 
@@ -581,17 +586,14 @@ ALB sticky sessions (`stickiness.lb_cookie`) đảm bảo mỗi user luôn hit c
 - [x] **Reliable change detection** — Jenkins dùng `currentBuild.changeSets` API thay `git diff HEAD~1` — chính xác cho single commit, batch push, merge commit. `[skip ci]` ngăn manifest commits trigger lại pipeline
 - [x] **Address management** — user-service thêm `PATCH/DELETE /api/v1/users/me/addresses/:id`; frontend profile page quản lý địa chỉ (thêm/sửa/xóa/đặt mặc định); checkout auto-fill từ địa chỉ đã lưu
 - [x] **Canary Deployment (Argo Rollouts v1.9.0)** — frontend Helm chart chuyển `Deployment` → `Rollout`, strategy canary `setWeight: 40` + `pause: {}`, ALB sticky sessions, replicaCount: 3
+- [x] **CloudWatch Container Insights + AWS X-Ray** — metrics/logs toàn bộ pods, distributed tracing qua 5 services; ADOT DaemonSet nhận OTLP traces từ NestJS (port 4318) → X-Ray; mỗi service có `tracing.ts` với OTel SDK instrumentation HTTP + NestJS + PostgreSQL + IORedis
+- [x] **SonarQube Quality Gate enforcement** — tất cả 6 services pass QG; `sonar.qualitygate.wait=true` tích hợp trực tiếp vào scanner (không cần webhook); coverage exclusions cho infrastructure files; 62 unit tests tổng cộng
 
-### 🔧 Đang triển khai
-
-_(không có việc đang dở)_
-
-### 📋 Kế hoạch tiếp theo
+### 📋 Kế hoạch tiếp theo (nếu mở rộng)
 
 - [ ] **HTTPS/TLS** — AWS ACM certificate + ALB HTTPS listener port 443
-- [ ] **AWS Secrets Manager + External Secrets Operator** — thay plain-text trong ConfigMap
-- [ ] **Fix Jenkins/SonarQube** — Elastic IP cho EC2, dùng `localhost:9000` thay IP động
-- [ ] **CloudWatch Container Insights + AWS X-Ray** — metrics/logs/traces tập trung, service dependency graph, ADOT collector DaemonSet
+- [ ] **AWS Secrets Manager + External Secrets Operator** — thay plain-text K8s Secret bằng ESO sync từ Secrets Manager
+- [ ] **Elastic IP cho Jenkins EC2** — SonarQube URL ổn định khi EC2 restart
 
 ---
 

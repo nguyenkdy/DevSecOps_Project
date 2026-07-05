@@ -270,7 +270,7 @@ CREATE TABLE order_items (
 
 - **AWS Account**: `715923838470` — Region `ap-southeast-1`
 - **EKS Cluster**: `ecommerce-eks`
-- **EKS Node Group**: `ecommerce-nodes-20260702035012697100000020` (t3.medium On-Demand × 2)
+- **EKS Node Group**: `ecommerce-nodes-20260702035012697100000020` (t3.medium On-Demand × 3)
 - **Namespace prod**: `ecommerce` | **Namespace dev**: `ecommerce-dev`
 - **RDS**: `ecommerce-postgres.c7gyqes8qujb.ap-southeast-1.rds.amazonaws.com` (PostgreSQL 17, db.t3.micro)
 - **RDS credentials**: `postgres` / `this_is_my_strong_password`
@@ -429,12 +429,13 @@ done
 - ✅ Dev environment: namespace `ecommerce-dev`, nhánh `develop`, Multibranch Pipeline
 - ✅ Address management (user-service + frontend profile + checkout auto-fill)
 - ✅ Canary deployment với Argo Rollouts v1.9.0 (frontend, setWeight:40)
+- ✅ CloudWatch Container Insights + AWS X-Ray: metrics/logs EKS + distributed tracing với ADOT collector
+- ✅ SonarQube Quality Gate: tất cả 6 services pass (coverage exclusions, qualitygate.wait=true)
 
-### Đang làm tiếp theo
+### Kế hoạch tiếp theo (nếu mở rộng)
 1. **HTTPS/TLS**: ACM certificate + HTTPS listener trên ALB
 2. **AWS Secrets Manager + ESO**: thay plain-text password trong ConfigMap/Secret
-3. **Fix Jenkins/SonarQube**: Elastic IP cho EC2, dùng `localhost:9000` thay IP động
-4. **CloudWatch Container Insights + AWS X-Ray**: metrics/logs EKS + distributed tracing với ADOT collector
+3. **Elastic IP cho Jenkins EC2**: SonarQube URL ổn định, không đổi khi EC2 restart
 
 ## Patterns đang dùng
 
@@ -445,6 +446,8 @@ done
 - **Soft delete**: isActive = false cho sản phẩm, không hard delete
 - **SELECT FOR UPDATE**: Dùng khi decrement stock để tránh race condition
 - **Canary deployment**: Argo Rollouts `setWeight:40` + `pause:{}` cho frontend — 1 canary pod / 2 stable pods, ALB sticky sessions đảm bảo consistency per user
+- **Distributed tracing (OTel + X-Ray)**: Mỗi service có `tracing.ts` khởi động OTel SDK trước NestJS bootstrap. ADOT DaemonSet nhận OTLP traces (port 4318) và forward lên X-Ray. Instrumentation: HTTP, NestJS, PostgreSQL, IORedis. SIGTERM handler: `void sdk.shutdown().catch().finally(() => process.exit(0))`
+- **SonarQube Quality Gate**: `sonar.qualitygate.wait=true` + `sonar.qualitygate.timeout=600` trong scanner params — không cần webhook, scanner tự poll và fail nếu QG error. Coverage exclusions: `**/tracing.ts,**/main.ts,**/config/**,**/*.dto.ts,**/*.controller.ts`
 
 ## Convention code
 

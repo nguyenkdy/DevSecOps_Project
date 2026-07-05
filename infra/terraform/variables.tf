@@ -23,15 +23,15 @@ variable "eks_node_instance_types" {
 }
 
 variable "eks_node_desired_size" {
-  description = "Số node mặc định"
+  description = "Số node mặc định — 3 nodes để chạy đủ 6 services + monitoring (CloudWatch + ADOT)"
   type        = number
-  default     = 2
+  default     = 3
 }
 
 variable "eks_node_min_size" {
-  description = "Số node tối thiểu (autoscaling)"
+  description = "Số node tối thiểu — 2 để đảm bảo HA khi một node bị drain"
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "eks_node_max_size" {
