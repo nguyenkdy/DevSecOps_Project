@@ -127,6 +127,27 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
+  name: observability
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/nguyenkdy/DevSecOps_Project.git
+    targetRevision: main
+    path: infra/k8s/observability
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: amazon-cloudwatch
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
   name: frontend
   namespace: argocd
 spec:
