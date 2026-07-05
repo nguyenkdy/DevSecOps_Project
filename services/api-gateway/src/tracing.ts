@@ -23,7 +23,7 @@ const sdk = new NodeSDK({
 sdk.start();
 
 process.on('SIGTERM', () => {
-  sdk.shutdown()
+  void sdk.shutdown()
     .catch(console.error)
     .finally(() => process.exit(0));
 });

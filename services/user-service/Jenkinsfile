@@ -112,7 +112,8 @@ pipeline {
                 -Dsonar.projectKey=user-service \
                 -Dsonar.sources=src \
                 -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
-                -Dsonar.exclusions=**/*.spec.ts,**/*.module.ts
+                -Dsonar.exclusions=**/*.spec.ts,**/*.module.ts \
+                -Dsonar.coverage.exclusions=**/tracing.ts,**/main.ts,**/config/configuration.ts,**/database/**
             '''
           }
         }

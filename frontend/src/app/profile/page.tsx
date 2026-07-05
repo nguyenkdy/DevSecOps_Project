@@ -96,7 +96,7 @@ export default function ProfilePage() {
     setShowAddrForm(true);
   };
 
-  const handleAddrSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddrSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setAddrSaving(true);
     setAddrMsg(null);
@@ -245,7 +245,7 @@ export default function ProfilePage() {
             </div>
             <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
               <input type="checkbox" checked={addrForm.isDefault} onChange={(e) => setAddrForm({ ...addrForm, isDefault: e.target.checked })} />
-              Đặt làm địa chỉ mặc định
+              <span>Đặt làm địa chỉ mặc định</span>
             </label>
             <div className="flex gap-2">
               <button type="submit" disabled={addrSaving} className="btn-primary text-sm px-4 py-2">
