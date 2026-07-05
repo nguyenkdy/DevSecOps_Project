@@ -43,15 +43,17 @@ function extractBearerToken(req: Request): string | null {
 export function createJwtMiddleware(jwtService: JwtService) {
   return async (req: Request, res: Response, next: NextFunction) => {
     if (isPublicRoute(req.path, req.method)) {
-      return next();
+      next();
+      return;
     }
 
     const token = extractBearerToken(req);
     if (!token) {
-      return res.status(401).json({
+      res.status(401).json({
         statusCode: 401,
         message: 'Unauthorized: Thiếu access token',
       });
+      return;
     }
 
     try {
@@ -64,7 +66,7 @@ export function createJwtMiddleware(jwtService: JwtService) {
 
       next();
     } catch {
-      return res.status(401).json({
+      res.status(401).json({
         statusCode: 401,
         message: 'Unauthorized: Token không hợp lệ hoặc đã hết hạn',
       });

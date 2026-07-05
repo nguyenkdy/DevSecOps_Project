@@ -20,4 +20,7 @@ async function bootstrap() {
   await app.listen(port);
   new Logger('Bootstrap').log(`Product Service running at http://localhost:${port}/api/v1`);
 }
-bootstrap();
+bootstrap().catch((err: Error) => {
+  console.error('Bootstrap failed:', err.message);
+  process.exit(1);
+});

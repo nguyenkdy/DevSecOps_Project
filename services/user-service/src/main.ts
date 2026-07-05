@@ -32,4 +32,7 @@ async function bootstrap() {
   logger.log(`User Service đang chạy tại http://localhost:${port}/api/v1`);
   logger.log(`Môi trường: ${config.get('nodeEnv') ?? 'development'} | Port: ${port}`);
 }
-bootstrap();
+bootstrap().catch((err: Error) => {
+  console.error('Bootstrap failed:', err.message);
+  process.exit(1);
+});

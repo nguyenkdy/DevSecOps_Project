@@ -127,4 +127,7 @@ async function bootstrap() {
   logger.log(`  order-service   → ${services.orderService}`);
   logger.log(`  payment-service → ${services.paymentService}`);
 }
-bootstrap();
+bootstrap().catch((err: Error) => {
+  console.error('Bootstrap failed:', err.message);
+  process.exit(1);
+});

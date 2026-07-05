@@ -23,4 +23,7 @@ async function bootstrap() {
   await app.listen(port);
   logger.log(`Payment Service running at http://localhost:${port}/api/v1`);
 }
-bootstrap();
+bootstrap().catch((err: Error) => {
+  console.error('Bootstrap failed:', err.message);
+  process.exit(1);
+});
