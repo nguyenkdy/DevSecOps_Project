@@ -86,13 +86,14 @@ data:
 
 ---
 apiVersion: apps/v1
-kind: DaemonSet
+kind: Deployment
 metadata:
   name: adot-collector
   namespace: amazon-cloudwatch
   labels:
     app: adot-collector
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: adot-collector
