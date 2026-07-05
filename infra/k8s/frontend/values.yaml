@@ -2,7 +2,7 @@ replicaCount: 3
 
 image:
   repository: 715923838470.dkr.ecr.ap-southeast-1.amazonaws.com/frontend
-  tag: 24-140b5b1
+  tag: 31-68e1784
 
 service:
   type: ClusterIP
