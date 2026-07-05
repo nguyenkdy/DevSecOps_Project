@@ -104,6 +104,8 @@ pipeline {
       when { not { environment name: 'SKIP', value: 'true' } }
       steps {
         sh '''
+          docker builder prune -f || true
+          docker image prune -f || true
           docker build -t ${SERVICE_NAME}:scan --target production ${SERVICE_DIR}
           trivy image --severity HIGH,CRITICAL --exit-code 0 --format table ${SERVICE_NAME}:scan
           docker rmi ${SERVICE_NAME}:scan || true

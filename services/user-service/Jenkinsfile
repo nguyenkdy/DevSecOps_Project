@@ -124,6 +124,8 @@ pipeline {
       steps {
         dir(env.SERVICE_DIR) {
           sh '''
+            docker builder prune -f || true
+            docker image prune -f || true
             docker build -t ${SERVICE_NAME}:${IMAGE_TAG} --target production .
             trivy image --severity HIGH,CRITICAL --exit-code 0 ${SERVICE_NAME}:${IMAGE_TAG}
           '''
