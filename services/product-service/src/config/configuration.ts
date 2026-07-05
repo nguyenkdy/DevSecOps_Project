@@ -5,7 +5,7 @@ export default () => ({
     host: process.env.DATABASE_HOST || 'localhost',
     port: parseInt(process.env.DATABASE_PORT ?? '', 10) || 5432,
     user: process.env.DATABASE_USER || 'postgres',
-    password: process.env.DATABASE_PASSWORD || 'postgres',
+    password: process.env.DATABASE_PASSWORD || '',
     name: process.env.DATABASE_NAME || 'product_db',
   },
   aws: {
@@ -15,8 +15,10 @@ export default () => ({
     staticBucket: process.env.S3_STATIC_BUCKET || 'ecom-static-dev',
     cloudfrontUrl: process.env.CLOUDFRONT_URL || '',
     keyPrefix: process.env.S3_KEY_PREFIX || '',
+    localstackKey: process.env.AWS_ACCESS_KEY_ID || '',
+    localstackSecret: process.env.AWS_SECRET_ACCESS_KEY || '',
   },
   jwt: {
-    accessSecret: process.env.JWT_ACCESS_SECRET || 'dev_access_secret',
+    accessSecret: process.env.JWT_ACCESS_SECRET || '',
   },
 });

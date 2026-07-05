@@ -15,7 +15,7 @@ import { HealthController } from './health.controller';
       global: true,
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('jwt.accessSecret') ?? 'dev_access_secret',
+        secret: config.get<string>('jwt.accessSecret') ?? '',
         signOptions: { expiresIn: '15m' },
       }),
     }),

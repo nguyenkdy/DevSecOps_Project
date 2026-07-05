@@ -83,9 +83,19 @@ pipeline {
               npx sonar-scanner \
                 -Dsonar.projectKey=api-gateway \
                 -Dsonar.sources=src \
-                -Dsonar.exclusions=**/*.spec.ts,**/*.module.ts
+                -Dsonar.exclusions=**/*.spec.ts,**/*.module.ts \
+                -Dsonar.coverage.exclusions=**/*
             '''
           }
+        }
+      }
+    }
+
+    stage('Quality Gate') {
+      when { not { environment name: 'SKIP', value: 'true' } }
+      steps {
+        timeout(time: 3, unit: 'MINUTES') {
+          waitForQualityGate abortPipeline: true
         }
       }
     }
@@ -94,6 +104,8 @@ pipeline {
       when { not { environment name: 'SKIP', value: 'true' } }
       steps {
         sh '''
+          docker builder prune -f || true
+          docker image prune -f || true
           docker build -t ${SERVICE_NAME}:scan --target production ${SERVICE_DIR}
           trivy image --severity HIGH,CRITICAL --exit-code 0 --format table ${SERVICE_NAME}:scan
           docker rmi ${SERVICE_NAME}:scan || true

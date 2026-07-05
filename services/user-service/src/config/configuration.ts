@@ -32,7 +32,7 @@ export default (): AppConfig => ({
     host: process.env.DATABASE_HOST || 'localhost',
     port: parseInt(process.env.DATABASE_PORT ?? '', 10) || 5432,
     user: process.env.DATABASE_USER || 'postgres',
-    password: process.env.DATABASE_PASSWORD || 'postgres',
+    password: process.env.DATABASE_PASSWORD || '',
     name: process.env.DATABASE_NAME || 'user_db',
   },
   redis: {
@@ -40,8 +40,8 @@ export default (): AppConfig => ({
     port: parseInt(process.env.REDIS_PORT ?? '', 10) || 6379,
   },
   jwt: {
-    accessSecret: process.env.JWT_ACCESS_SECRET || 'dev_access_secret',
-    refreshSecret: process.env.JWT_REFRESH_SECRET || 'dev_refresh_secret',
+    accessSecret: process.env.JWT_ACCESS_SECRET || '',
+    refreshSecret: process.env.JWT_REFRESH_SECRET || '',
     accessExpires: process.env.JWT_ACCESS_EXPIRES || '15m',
     refreshExpires: process.env.JWT_REFRESH_EXPIRES || '7d',
   },

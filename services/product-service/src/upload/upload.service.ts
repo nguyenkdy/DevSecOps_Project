@@ -28,7 +28,10 @@ export class UploadService {
       region: config.get<string>('aws.region'),
       ...(isLocal && endpoint && {
         endpoint,
-        credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
+        credentials: {
+          accessKeyId: config.get<string>('aws.localstackKey') ?? '',
+          secretAccessKey: config.get<string>('aws.localstackSecret') ?? '',
+        },
         forcePathStyle: true, // LocalStack cần pathStyle
       }),
     });

@@ -2,7 +2,7 @@ export default () => ({
   nodeEnv: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT || '3000'),
   jwt: {
-    accessSecret: process.env.JWT_ACCESS_SECRET || 'dev_access_secret',
+    accessSecret: process.env.JWT_ACCESS_SECRET || '',
   },
   // URL nội bộ của từng service (trong Docker dùng container name, ngoài dùng localhost)
   services: {

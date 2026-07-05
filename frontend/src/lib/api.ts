@@ -6,6 +6,13 @@
  * - Client-side (browser): dùng NEXT_PUBLIC_API_URL
  */
 
+export class ApiError extends Error {
+  constructor(public readonly statusCode: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 function getBaseUrl(): string {
   if (typeof window === 'undefined') {
     // Server-side render
@@ -65,7 +72,7 @@ async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T>
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: 'Lỗi không xác định' }));
-    throw { statusCode: res.status, message: error.message ?? 'Lỗi không xác định' };
+    throw new ApiError(res.status, error.message ?? 'Lỗi không xác định');
   }
 
   const json = await res.json();

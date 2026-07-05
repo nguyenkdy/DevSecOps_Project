@@ -32,7 +32,7 @@ export default (): AppConfig => ({
     host: process.env.DATABASE_HOST || 'localhost',
     port: parseInt(process.env.DATABASE_PORT ?? '', 10) || 5432,
     user: process.env.DATABASE_USER || 'postgres',
-    password: process.env.DATABASE_PASSWORD || 'postgres',
+    password: process.env.DATABASE_PASSWORD || '',
     name: process.env.DATABASE_NAME || 'order_db',
   },
   redis: {
@@ -40,7 +40,7 @@ export default (): AppConfig => ({
     port: parseInt(process.env.REDIS_PORT ?? '', 10) || 6379,
   },
   jwt: {
-    accessSecret: process.env.JWT_ACCESS_SECRET || 'dev_access_secret',
+    accessSecret: process.env.JWT_ACCESS_SECRET || '',
   },
   aws: {
     region: process.env.AWS_REGION || 'ap-southeast-1',
