@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: 715923838470.dkr.ecr.ap-southeast-1.amazonaws.com/product-service
-  tag: 18-1daece5
+  tag: 40-f667be8
 
 service:
   type: ClusterIP
