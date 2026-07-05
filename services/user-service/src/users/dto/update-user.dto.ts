@@ -8,6 +8,6 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^(0|\+84)[0-9]{9,10}$/, { message: 'Số điện thoại không hợp lệ' })
+  @Matches(/^(0|\+84)\d{9,10}$/, { message: 'Số điện thoại không hợp lệ' })
   phone?: string;
 }
