@@ -54,7 +54,7 @@ pipeline {
       when { not { environment name: 'SKIP', value: 'true' } }
       steps {
         dir(env.SERVICE_DIR) {
-          sh 'npm ci --legacy-peer-deps --prefer-offline --no-audit'
+          sh 'npm install --legacy-peer-deps --no-audit'
         }
       }
     }
