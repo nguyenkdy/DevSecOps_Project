@@ -33,6 +33,8 @@ config:
   PRODUCT_SERVICE_URL: "http://product-service:3002"
   ORDER_SERVICE_URL: "http://order-service:3003"
   PAYMENT_SERVICE_URL: "http://payment-service:3004"
+  OTEL_SERVICE_NAME: "api-gateway"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://adot-collector.amazon-cloudwatch:4318"
 
 externalSecret:
   enabled: false

@@ -30,6 +30,8 @@ config:
   AWS_REGION: ap-southeast-1
   SQS_ORDER_CREATED_URL: "https://sqs.ap-southeast-1.amazonaws.com/715923838470/ecommerce-order-created"
   SNS_ORDER_PAID_TOPIC_ARN: "arn:aws:sns:ap-southeast-1:715923838470:ecommerce-order-paid"
+  OTEL_SERVICE_NAME: "payment-service"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://adot-collector.amazon-cloudwatch:4318"
 
 externalSecret:
   enabled: false

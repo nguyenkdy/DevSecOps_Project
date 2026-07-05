@@ -1,0 +1,163 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: amazon-cloudwatch
+  labels:
+    name: amazon-cloudwatch
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: adot-collector
+  namespace: amazon-cloudwatch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: adot-collector
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "nodes", "endpoints", "namespaces", "services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: adot-collector
+subjects:
+  - kind: ServiceAccount
+    name: adot-collector
+    namespace: amazon-cloudwatch
+roleRef:
+  kind: ClusterRole
+  name: adot-collector
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Pipeline: OTLP gRPC/HTTP → batch → AWS X-Ray
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: adot-collector-config
+  namespace: amazon-cloudwatch
+data:
+  config.yaml: |
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      batch/traces:
+        timeout: 1s
+        send_batch_size: 50
+      resourcedetection:
+        detectors: [env, system]
+        timeout: 2s
+        override: false
+
+    exporters:
+      awsxray:
+        region: ap-southeast-1
+        index_all_attributes: true
+      debug:
+        verbosity: basic
+
+    service:
+      extensions: [health_check]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [resourcedetection, batch/traces]
+          exporters: [awsxray]
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: adot-collector
+  namespace: amazon-cloudwatch
+  labels:
+    app: adot-collector
+spec:
+  selector:
+    matchLabels:
+      app: adot-collector
+  template:
+    metadata:
+      labels:
+        app: adot-collector
+    spec:
+      serviceAccountName: adot-collector
+      containers:
+        - name: adot-collector
+          image: public.ecr.aws/aws-observability/aws-otel-collector:v0.43.0
+          args: ["--config=/conf/config.yaml"]
+          ports:
+            - containerPort: 4317
+              name: otlp-grpc
+              protocol: TCP
+            - containerPort: 4318
+              name: otlp-http
+              protocol: TCP
+            - containerPort: 13133
+              name: health
+              protocol: TCP
+          volumeMounts:
+            - name: config-vol
+              mountPath: /conf
+          resources:
+            requests:
+              cpu: 32m
+              memory: 64Mi
+            limits:
+              cpu: 256m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 30
+            periodSeconds: 30
+      volumes:
+        - name: config-vol
+          configMap:
+            name: adot-collector-config
+            items:
+              - key: config.yaml
+                path: config.yaml
+      terminationGracePeriodSeconds: 30
+
+---
+# ClusterIP Service — pods gửi traces tới đây
+apiVersion: v1
+kind: Service
+metadata:
+  name: adot-collector
+  namespace: amazon-cloudwatch
+spec:
+  selector:
+    app: adot-collector
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+  type: ClusterIP

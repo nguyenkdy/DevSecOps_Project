@@ -31,6 +31,8 @@ config:
   REDIS_PORT: "6379"
   AWS_REGION: ap-southeast-1
   SNS_USER_REGISTERED_TOPIC_ARN: "arn:aws:sns:ap-southeast-1:715923838470:ecommerce-user-registered"
+  OTEL_SERVICE_NAME: "user-service"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://adot-collector.amazon-cloudwatch:4318"
 
 externalSecret:
   enabled: false

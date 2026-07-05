@@ -32,6 +32,8 @@ config:
   PRODUCT_SERVICE_URL: "http://product-service:3002"
   AWS_REGION: ap-southeast-1
   SQS_ORDER_CREATED_URL: "https://sqs.ap-southeast-1.amazonaws.com/715923838470/ecommerce-order-created"
+  OTEL_SERVICE_NAME: "order-service"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://adot-collector.amazon-cloudwatch:4318"
 
 externalSecret:
   enabled: false

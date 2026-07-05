@@ -30,6 +30,8 @@ config:
   AWS_REGION: ap-southeast-1
   S3_MEDIA_BUCKET: "ecommerce-product-images-715923838470"
   CLOUDFRONT_URL: "https://d1q28g8lb2x75x.cloudfront.net"
+  OTEL_SERVICE_NAME: "product-service"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://adot-collector.amazon-cloudwatch:4318"
 
 externalSecret:
   enabled: false
