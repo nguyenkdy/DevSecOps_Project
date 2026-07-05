@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: 715923838470.dkr.ecr.ap-southeast-1.amazonaws.com/payment-service
-  tag: 4-5b420bd
+  tag: 39-f667be8
 
 service:
   type: ClusterIP
