@@ -84,18 +84,11 @@ pipeline {
                 -Dsonar.projectKey=api-gateway \
                 -Dsonar.sources=src \
                 -Dsonar.exclusions=**/*.spec.ts,**/*.module.ts \
-                -Dsonar.coverage.exclusions=**/*
+                -Dsonar.coverage.exclusions=**/* \
+                -Dsonar.qualitygate.wait=true \
+                -Dsonar.qualitygate.timeout=600
             '''
           }
-        }
-      }
-    }
-
-    stage('Quality Gate') {
-      when { not { environment name: 'SKIP', value: 'true' } }
-      steps {
-        timeout(time: 10, unit: 'MINUTES') {
-          waitForQualityGate abortPipeline: true
         }
       }
     }

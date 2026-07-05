@@ -94,18 +94,11 @@ pipeline {
                 -Dsonar.sources=src \
                 -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
                 -Dsonar.exclusions=**/*.spec.ts,**/*.module.ts \
-                -Dsonar.coverage.exclusions=**/tracing.ts,**/main.ts,**/config/configuration.ts,**/database/**
+                -Dsonar.coverage.exclusions=**/tracing.ts,**/main.ts,**/config/configuration.ts,**/database/** \
+                -Dsonar.qualitygate.wait=true \
+                -Dsonar.qualitygate.timeout=600
             '''
           }
-        }
-      }
-    }
-
-    stage('Quality Gate') {
-      when { not { environment name: 'SKIP', value: 'true' } }
-      steps {
-        timeout(time: 10, unit: 'MINUTES') {
-          waitForQualityGate abortPipeline: true
         }
       }
     }
