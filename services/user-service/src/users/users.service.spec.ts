@@ -28,9 +28,11 @@ describe('UsersService', () => {
           provide: getRepositoryToken(Address),
           useValue: {
             find: jest.fn(),
+            findOne: jest.fn(),
             create: jest.fn(),
             save: jest.fn(),
             update: jest.fn(),
+            remove: jest.fn(),
           },
         },
       ],
@@ -100,6 +102,21 @@ describe('UsersService', () => {
     });
   });
 
+  describe('listAddresses', () => {
+    it('nên trả về danh sách địa chỉ của user', async () => {
+      const addresses = [{ id: 'addr-1', userId: 'uuid-1' }];
+      addressRepo.find.mockResolvedValue(addresses as any);
+
+      const result = await service.listAddresses('uuid-1');
+
+      expect(result).toEqual(addresses);
+      expect(addressRepo.find).toHaveBeenCalledWith({
+        where: { userId: 'uuid-1' },
+        order: { isDefault: 'DESC', createdAt: 'DESC' },
+      });
+    });
+  });
+
   describe('addAddress', () => {
     it('nên bỏ default cũ khi thêm địa chỉ default mới', async () => {
       const dto = {
@@ -114,11 +131,65 @@ describe('UsersService', () => {
 
       await service.addAddress('uuid-1', dto);
 
-      // Phải reset default của các địa chỉ cũ trước
       expect(addressRepo.update).toHaveBeenCalledWith(
         { userId: 'uuid-1' },
         { isDefault: false },
       );
+    });
+
+    it('nên không gọi update khi isDefault=false', async () => {
+      const dto = { fullName: 'B', phone: '0901234567', addressLine: '456 St', city: 'HN', isDefault: false };
+      addressRepo.create.mockReturnValue({ ...dto, userId: 'uuid-1' } as any);
+      addressRepo.save.mockResolvedValue({ id: 'addr-2', ...dto } as any);
+
+      await service.addAddress('uuid-1', dto);
+
+      expect(addressRepo.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateAddress', () => {
+    it('nên throw NotFoundException khi địa chỉ không tồn tại', async () => {
+      addressRepo.findOne.mockResolvedValue(null);
+      await expect(service.updateAddress('uuid-1', 'addr-99', {} as any)).rejects.toThrow(NotFoundException);
+    });
+
+    it('nên cập nhật địa chỉ và reset default cũ khi isDefault=true', async () => {
+      const existing = { id: 'addr-1', userId: 'uuid-1', isDefault: false };
+      addressRepo.findOne.mockResolvedValue(existing as any);
+      addressRepo.save.mockResolvedValue({ ...existing, isDefault: true } as any);
+
+      await service.updateAddress('uuid-1', 'addr-1', { isDefault: true } as any);
+
+      expect(addressRepo.update).toHaveBeenCalledWith({ userId: 'uuid-1' }, { isDefault: false });
+      expect(addressRepo.save).toHaveBeenCalled();
+    });
+
+    it('nên cập nhật địa chỉ mà không reset default khi isDefault=false', async () => {
+      const existing = { id: 'addr-1', userId: 'uuid-1', fullName: 'Old' };
+      addressRepo.findOne.mockResolvedValue(existing as any);
+      addressRepo.save.mockResolvedValue({ ...existing, fullName: 'New' } as any);
+
+      await service.updateAddress('uuid-1', 'addr-1', { fullName: 'New' } as any);
+
+      expect(addressRepo.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteAddress', () => {
+    it('nên throw NotFoundException khi địa chỉ không tồn tại', async () => {
+      addressRepo.findOne.mockResolvedValue(null);
+      await expect(service.deleteAddress('uuid-1', 'addr-99')).rejects.toThrow(NotFoundException);
+    });
+
+    it('nên xóa địa chỉ khi tồn tại', async () => {
+      const existing = { id: 'addr-1', userId: 'uuid-1' };
+      addressRepo.findOne.mockResolvedValue(existing as any);
+      addressRepo.remove.mockResolvedValue(undefined as any);
+
+      await service.deleteAddress('uuid-1', 'addr-1');
+
+      expect(addressRepo.remove).toHaveBeenCalledWith(existing);
     });
   });
 });

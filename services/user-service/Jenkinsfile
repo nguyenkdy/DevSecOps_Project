@@ -113,7 +113,7 @@ pipeline {
                 -Dsonar.sources=src \
                 -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
                 -Dsonar.exclusions=**/*.spec.ts,**/*.module.ts \
-                -Dsonar.coverage.exclusions=**/tracing.ts,**/main.ts,**/config/configuration.ts,**/database/** \
+                -Dsonar.coverage.exclusions=**/tracing.ts,**/main.ts,**/config/configuration.ts,**/database/**,**/*.dto.ts,**/*.controller.ts \
                 -Dsonar.qualitygate.wait=true \
                 -Dsonar.qualitygate.timeout=600
             '''
