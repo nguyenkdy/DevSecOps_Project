@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: 715923838470.dkr.ecr.ap-southeast-1.amazonaws.com/api-gateway
-  tag: 36-b6a5b6f
+  tag: 52-bebfc87
 
 service:
   type: ClusterIP
