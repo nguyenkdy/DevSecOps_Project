@@ -22,7 +22,7 @@ const sdk = new NodeSDK({
   ],
 });
 
-sdk.start().catch(console.error);
+sdk.start();
 
 process.on('SIGTERM', () => {
   sdk.shutdown()
