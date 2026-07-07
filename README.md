@@ -67,7 +67,7 @@ flowchart TB
 | user-service | 3001 | Registration, login, refresh token, profile, shipping addresses |
 | product-service | 3002 | Product catalog, Vietnamese full-text search, S3 image upload |
 | order-service | 3003 | Cart (Redis), checkout, order management |
-| payment-service | 3004 | VNPay/MoMo demo, QR code, SQS consumer, webhook |
+| payment-service | 3004 | MoMo demo, QR code, SQS consumer, webhook |
 | frontend | 3005 | Next.js 15 storefront (SSR + CSR) |
 
 ### Order Flow (checkout → payment)
@@ -198,7 +198,7 @@ DevSecOps-Project/
 │   │
 │   └── payment-service/               # Port 3004
 │       ├── src/
-│       │   ├── payments/              # VNPay demo, QR, auto-approve
+│       │   ├── payments/              # MOMO demo, QR, auto-approve
 │       │   ├── common/sqs-consumer/   # Polls the order-created SQS queue
 │       │   └── database/migrations/
 │       ├── Dockerfile
