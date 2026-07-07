@@ -1,26 +1,26 @@
 # E-commerce Microservices Platform
 
-Đồ án DevSecOps — Nền tảng thương mại điện tử theo kiến trúc microservices, triển khai trên AWS với pipeline **Jenkins CI → ArgoCD CD → EKS**.
+A DevSecOps capstone project — an e-commerce platform built with a microservices architecture, deployed on AWS with a **Jenkins CI → ArgoCD CD → EKS** pipeline.
 
 ---
 
-## Mục lục
+## Table of Contents
 
-1. [Tổng quan kiến trúc](#tổng-quan-kiến-trúc)
+1. [Architecture Overview](#architecture-overview)
 2. [Tech Stack](#tech-stack)
-3. [Cấu trúc thư mục](#cấu-trúc-thư-mục)
-4. [Luồng CI/CD](#luồng-cicd)
-5. [Môi trường](#môi-trường)
+3. [Project Structure](#project-structure)
+4. [CI/CD Flow](#cicd-flow)
+5. [Environments](#environments)
 6. [Design Patterns](#design-patterns)
-7. [Quyết định Cost](#quyết-định-cost)
+7. [Cost Decisions](#cost-decisions)
 8. [Roadmap](#roadmap)
-9. [Lưu ý quan trọng](#lưu-ý-quan-trọng)
+9. [Important Notes](#important-notes)
 
 ---
 
-## Tổng quan kiến trúc
+## Architecture Overview
 
-### Kiến trúc tổng thể
+### Overall Architecture
 
 ```mermaid
 flowchart TB
@@ -61,18 +61,18 @@ flowchart TB
 
 ### Services
 
-| Service | Port | Chức năng |
+| Service | Port | Responsibility |
 |---------|------|-----------|
-| api-gateway | 3000 | Entry point duy nhất — JWT validation, rate limiting, reverse proxy |
-| user-service | 3001 | Đăng ký, đăng nhập, refresh token, profile, địa chỉ giao hàng |
-| product-service | 3002 | Catalog sản phẩm, full-text search tiếng Việt, upload ảnh S3 |
-| order-service | 3003 | Giỏ hàng (Redis), checkout, quản lý đơn hàng |
+| api-gateway | 3000 | Single entry point — JWT validation, rate limiting, reverse proxy |
+| user-service | 3001 | Registration, login, refresh token, profile, shipping addresses |
+| product-service | 3002 | Product catalog, Vietnamese full-text search, S3 image upload |
+| order-service | 3003 | Cart (Redis), checkout, order management |
 | payment-service | 3004 | VNPay/MoMo demo, QR code, SQS consumer, webhook |
 | frontend | 3005 | Next.js 15 storefront (SSR + CSR) |
 
-### Luồng đặt hàng (checkout → thanh toán)
+### Order Flow (checkout → payment)
 
-Luồng bất đồng bộ quan trọng nhất của hệ thống — Order Service và Payment Service hoàn toàn decoupled qua SQS/SNS:
+The most important asynchronous flow in the system — Order Service and Payment Service are fully decoupled via SQS/SNS:
 
 ```mermaid
 sequenceDiagram
@@ -90,48 +90,48 @@ sequenceDiagram
     U->>FE: Checkout
     FE->>GW: POST /orders/checkout
     GW->>OS: forward (x-user-id)
-    OS->>PS: verify giá + stock
+    OS->>PS: verify price + stock
     OS->>PS: decrement stock
-    OS->>OS: tạo Order + OrderItem (snapshot giá)
+    OS->>OS: create Order + OrderItem (price snapshot)
     OS->>SQS: publish order-created
     OS-->>FE: Order (status: pending)
 
     SQS-->>PAY: consume order-created
-    PAY->>PAY: tạo Transaction (pending)
-    U->>PAY: quét QR / auto-approve (demo)
+    PAY->>PAY: create Transaction (pending)
+    U->>PAY: scan QR / auto-approve (demo)
     PAY->>SNS: publish order.paid
     SNS-->>L: trigger
-    L->>SES: gửi email xác nhận
+    L->>SES: send confirmation email
 ```
 
 ---
 
 ## Tech Stack
 
-### Backend — mỗi service
-| Công nghệ | Version | Mục đích |
+### Backend — each service
+| Technology | Version | Purpose |
 |-----------|---------|---------|
 | Node.js | 22 LTS | Runtime |
 | NestJS | 11.x | Framework |
-| TypeScript | 5.8.x | Ngôn ngữ |
+| TypeScript | 5.8.x | Language |
 | TypeORM | 0.3.x | ORM + migrations |
-| PostgreSQL | 17 | Database chính |
+| PostgreSQL | 17 | Primary database |
 | Redis | 8 | Cart cache & token blacklist |
 | AWS SDK v3 | 3.750+ | S3, SQS, SNS, SES |
-| bcryptjs | 2.x | Bcrypt hash password |
+| bcryptjs | 2.x | Password hashing |
 | passport-jwt | 4.x | JWT guard |
 | class-validator | 0.14.x | DTO validation |
 
 ### Frontend
-| Công nghệ | Version | Mục đích |
+| Technology | Version | Purpose |
 |-----------|---------|---------|
 | Next.js | 15.x | React framework (App Router) |
 | React | 19.x | UI library |
-| TypeScript | 5.8.x | Ngôn ngữ |
+| TypeScript | 5.8.x | Language |
 | TailwindCSS | 3.4.x | Styling |
 
 ### Infrastructure & DevSecOps
-| Công nghệ | Mục đích |
+| Technology | Purpose |
 |-----------|---------|
 | AWS EKS | Kubernetes cluster (t3.medium On-Demand × 3) |
 | AWS RDS PostgreSQL 17 | Managed database |
@@ -140,22 +140,22 @@ sequenceDiagram
 | AWS SES | Email service |
 | AWS ECR | Docker image registry |
 | AWS Secrets Manager | Secret management |
-| AWS CloudWatch Container Insights | Metrics CPU/memory/network + logs tất cả pods |
-| AWS X-Ray | Distributed tracing — visualize request qua microservices |
-| AWS ADOT (OpenTelemetry) | Collector nhận traces từ services, forward lên X-Ray |
-| OpenTelemetry SDK | Instrumentation trong mỗi NestJS service (`tracing.ts`) |
+| AWS CloudWatch Container Insights | CPU/memory/network metrics + logs for all pods |
+| AWS X-Ray | Distributed tracing — visualize requests across microservices |
+| AWS ADOT (OpenTelemetry) | Collector that receives traces from services and forwards them to X-Ray |
+| OpenTelemetry SDK | Instrumentation in each NestJS service (`tracing.ts`) |
 | Terraform | Infrastructure as Code |
 | Helm | Kubernetes package manager |
 | ArgoCD | GitOps continuous delivery |
-| Argo Rollouts | Canary deployment cho frontend |
+| Argo Rollouts | Canary deployment for the frontend |
 | Jenkins | CI pipeline (SonarQube Quality Gate + Trivy) |
-| SonarQube | Static code analysis (SAST) — Quality Gate enforce trên mọi PR |
+| SonarQube | Static code analysis (SAST) — Quality Gate enforced on every build |
 | Trivy | Container image security scan |
 | Docker Compose + LocalStack | Local development |
 
 ---
 
-## Cấu trúc thư mục
+## Project Structure
 
 ```
 DevSecOps-Project/
@@ -163,7 +163,7 @@ DevSecOps-Project/
 ├── services/                          # Backend microservices (NestJS)
 │   ├── api-gateway/                   # Port 3000 — entry point
 │   │   ├── src/
-│   │   │   ├── common/                # JWT middleware trước proxy
+│   │   │   ├── common/                # JWT middleware, runs before the proxy
 │   │   │   ├── config/
 │   │   │   └── main.ts                # CORS, rate limit, proxy setup
 │   │   ├── Dockerfile
@@ -180,9 +180,9 @@ DevSecOps-Project/
 │   │
 │   ├── product-service/               # Port 3002
 │   │   ├── src/
-│   │   │   ├── products/              # CRUD, upload ảnh
+│   │   │   ├── products/              # CRUD, image upload
 │   │   │   ├── categories/            # Category tree (self-referential)
-│   │   │   ├── search/                # Full-text search tiếng Việt
+│   │   │   ├── search/                # Vietnamese full-text search
 │   │   │   ├── upload/                # S3 PutObject, CloudFront URL
 │   │   │   └── database/migrations/
 │   │   ├── Dockerfile
@@ -199,7 +199,7 @@ DevSecOps-Project/
 │   └── payment-service/               # Port 3004
 │       ├── src/
 │       │   ├── payments/              # VNPay demo, QR, auto-approve
-│       │   ├── common/sqs-consumer/   # Poll SQS queue order-created
+│       │   ├── common/sqs-consumer/   # Polls the order-created SQS queue
 │       │   └── database/migrations/
 │       ├── Dockerfile
 │       └── Jenkinsfile
@@ -214,8 +214,8 @@ DevSecOps-Project/
 │   └── Jenkinsfile
 │
 ├── infra/
-│   ├── docker/                        # Script init LocalStack + multi-database
-│   ├── scripts/                       # Seed dữ liệu sản phẩm
+│   ├── docker/                        # LocalStack init + multi-database scripts
+│   ├── scripts/                       # Product data seeding
 │   │
 │   ├── terraform/                     # AWS Infrastructure as Code
 │   │   ├── vpc.tf, eks.tf, rds.tf
@@ -223,20 +223,20 @@ DevSecOps-Project/
 │   │   ├── sqs.tf, sns.tf, iam.tf, secrets.tf
 │   │   └── variables.tf, outputs.tf
 │   │
-│   └── k8s/                           # Helm charts (GitOps — ArgoCD đọc)
+│   └── k8s/                           # Helm charts (GitOps — read by ArgoCD)
 │       ├── api-gateway/, user-service/, product-service/
 │       ├── order-service/, payment-service/, frontend/, redis/
 │       │   └── values.yaml + values.dev.yaml + templates/
 │       └── observability/             # ADOT Collector (OTel → X-Ray)
 │
-├── docker-compose.yml                 # Local dev: tất cả services + LocalStack
-├── CLAUDE.md                          # Context cho AI assistant
-└── README.md                          # File này
+├── docker-compose.yml                 # Local dev: all services + LocalStack
+├── CLAUDE.md                          # Context for the AI assistant
+└── README.md                          # This file
 ```
 
 ---
 
-## Luồng CI/CD
+## CI/CD Flow
 
 ```mermaid
 flowchart LR
@@ -245,7 +245,7 @@ flowchart LR
 
     subgraph CI["Jenkins CI Pipeline"]
         direction TB
-        C1["Detect changes<br/>(theo từng service)"] --> C2["Lint & Build"]
+        C1["Detect changes<br/>(per service)"] --> C2["Lint & Build"]
         C2 --> C3["Unit + Integration Tests<br/>(PostgreSQL + Redis)"]
         C3 --> C4["SonarQube SAST<br/>Quality Gate"]
         C4 --> C5["Trivy<br/>container scan"]
@@ -254,27 +254,27 @@ flowchart LR
     end
 
     C7 --> GH2["GitHub<br/>infra/k8s"]
-    GH2 -->|poll ~3 phút| ARGO["ArgoCD"]
+    GH2 -->|poll ~3 min| ARGO["ArgoCD"]
     ARGO -->|sync| EKS["EKS<br/>ecommerce / ecommerce-dev"]
 
     classDef stage fill:#4f46e5,stroke:#312e81,color:#fff
     class C1,C2,C3,C4,C5,C6,C7 stage
 ```
 
-**Ghi chú:**
-- `[skip ci]` trong commit message ngăn manifest commit (bước cuối) trigger lại pipeline.
-- Phát hiện thay đổi dùng `currentBuild.changeSets` (Jenkins SCM API) — chính xác với cả single commit, batch push và merge commit.
-- Mỗi service có Jenkins job riêng, chỉ build khi có thay đổi trong thư mục service tương ứng — tránh rebuild toàn bộ monorepo.
-- ArgoCD là nguồn sự thật duy nhất (source of truth) cho trạng thái cluster — Jenkins **không** chạy `kubectl apply`.
+**Notes:**
+- `[skip ci]` in the commit message prevents the manifest commit (the final step) from re-triggering the pipeline.
+- Change detection uses `currentBuild.changeSets` (Jenkins SCM API) — accurate for single commits, batch pushes, and merge commits alike.
+- Each service has its own Jenkins job and only builds when files change in its own directory — avoids rebuilding the whole monorepo.
+- ArgoCD is the single source of truth for cluster state — Jenkins **never** runs `kubectl apply`.
 
 ### Canary Deployment (frontend)
 
 ```mermaid
 flowchart LR
-    A["Image tag mới<br/>trong values.yaml"] --> B["Argo Rollouts:<br/>tạo canary pod (~40% traffic)"]
-    B --> C{"Pause<br/>verify thủ công"}
-    C -->|OK| D["Promote:<br/>100% traffic sang bản mới"]
-    C -->|Lỗi| E["Abort / Undo:<br/>rollback về bản ổn định"]
+    A["New image tag<br/>in values.yaml"] --> B["Argo Rollouts:<br/>spins up a canary pod (~40% traffic)"]
+    B --> C{"Pause<br/>manual verification"}
+    C -->|OK| D["Promote:<br/>100% traffic to the new version"]
+    C -->|Failed| E["Abort / Undo:<br/>roll back to the stable version"]
 
     classDef good fill:#059669,stroke:#065f46,color:#fff
     classDef bad fill:#dc2626,stroke:#7f1d1d,color:#fff
@@ -284,100 +284,100 @@ flowchart LR
     class A,B,C neutral
 ```
 
-ALB sticky sessions (`stickiness.lb_cookie`) đảm bảo mỗi user luôn hit cùng một pod version trong lúc canary đang chạy — tránh CSS hash mismatch giữa bản mới và bản cũ.
+ALB sticky sessions (`stickiness.lb_cookie`) ensure each user always hits the same pod version while a canary is in progress — avoiding CSS hash mismatches between the new and old versions.
 
 ---
 
-## Môi trường
+## Environments
 
 | | Production | Dev |
 |--|------------|-----|
 | **Namespace** | `ecommerce` | `ecommerce-dev` |
-| **Nhánh Git** | `main` | `develop` |
+| **Git branch** | `main` | `develop` |
 | **Trigger** | Jenkins pipeline (per-service) | Jenkins Multibranch Pipeline (webhook) |
-| **Cluster** | `ecommerce-eks` (ap-southeast-1) | cùng cluster |
+| **Cluster** | `ecommerce-eks` (ap-southeast-1) | same cluster |
 
-> Chi tiết hạ tầng, vận hành, shutdown/startup, secrets... xem [CLAUDE.md](CLAUDE.md)
+> For infrastructure details, operations, shutdown/startup, secrets, etc. see [CLAUDE.md](CLAUDE.md)
 
 ---
 
 ## Design Patterns
 
 ### Distributed JWT
-Mỗi service tự verify JWT bằng shared `JWT_ACCESS_SECRET` — không gọi User Service. Giảm latency và tránh single point of failure. API Gateway validate và forward `x-user-id`, `x-user-email`, `x-user-role` qua internal headers.
+Each service verifies the JWT itself using a shared `JWT_ACCESS_SECRET` — no call to User Service is needed. This reduces latency and avoids a single point of failure. The API Gateway validates the token and forwards `x-user-id`, `x-user-email`, `x-user-role` via internal headers.
 
 ### Snapshot Pattern (OrderItem)
-Giá và tên sản phẩm được snapshot vào `order_items` tại thời điểm checkout. Lịch sử đơn hàng không bị ảnh hưởng khi sản phẩm thay đổi giá sau đó.
+Product price and name are snapshotted into `order_items` at checkout time. Order history remains unaffected by later price changes to the product.
 
 ### Async Messaging (SQS Decoupling)
-Order Service publish event `order-created` lên SQS sau khi tạo đơn thành công. Payment Service có SQS Consumer tự động poll queue và tạo Transaction. Hai service hoàn toàn decoupled — Order không cần biết Payment đang làm gì.
+Order Service publishes an `order-created` event to SQS after successfully creating an order. Payment Service has an SQS Consumer that automatically polls the queue and creates a Transaction. The two services are fully decoupled — Order doesn't need to know what Payment is doing.
 
-### Cart trên Redis
-Giỏ hàng lưu Redis với key `cart:{userId}`, TTL 7 ngày. Tự expire, không tốn storage PostgreSQL, read/write O(1).
+### Cart on Redis
+The cart is stored in Redis under the key `cart:{userId}`, with a 7-day TTL. It expires automatically, doesn't consume PostgreSQL storage, and offers O(1) read/write.
 
-### Full-text Search tiếng Việt
-PostgreSQL extension `unaccent` + `pg_trgm` + `to_tsvector` với config `vietnamese_unaccent`. DB trigger tự cập nhật `tsvector` khi product thay đổi. GIN index đảm bảo query sub-millisecond. Thay thế OpenSearch để tiết kiệm chi phí.
+### Vietnamese Full-text Search
+Uses the PostgreSQL `unaccent` + `pg_trgm` + `to_tsvector` extensions with the `vietnamese_unaccent` config. A DB trigger automatically updates the `tsvector` whenever a product changes. A GIN index keeps queries sub-millisecond. Replaces OpenSearch to save on cost.
 
 ### GitOps (Jenkins → ArgoCD)
-Jenkins CI chỉ build image và cập nhật `image.tag` trong `values.yaml` rồi push lên Git. ArgoCD là source of truth — tự detect diff và apply lên EKS.
+Jenkins CI only builds the image and updates `image.tag` in `values.yaml`, then pushes to Git. ArgoCD is the source of truth — it detects the diff and applies it to EKS automatically.
 
 ### Canary Deployment (Argo Rollouts)
-Frontend dùng `argoproj.io/v1alpha1 Rollout` thay vì `apps/v1 Deployment` để giảm rủi ro khi deploy bản mới — xem sơ đồ ở mục [Luồng CI/CD](#luồng-cicd).
+The frontend uses `argoproj.io/v1alpha1 Rollout` instead of `apps/v1 Deployment` to reduce risk when deploying a new version — see the diagram in [CI/CD Flow](#cicd-flow).
 
 ---
 
-## Quyết định Cost
+## Cost Decisions
 
-| AWS Service | Quyết định | Lý do |
+| AWS Service | Decision | Reason |
 |-------------|-----------|-------|
-| Aurora PostgreSQL | ❌ → RDS PostgreSQL | Aurora không có free tier |
-| ElastiCache Redis | ❌ → Redis pod trong EKS | Tiết kiệm chi phí managed cache |
-| OpenSearch | ❌ → PostgreSQL FTS | Đủ cho quy mô catalog hiện tại |
-| Cognito | ❌ → JWT tự build | Hiểu sâu hơn, không vendor lock-in |
-| EKS | ✅ On-Demand t3.medium × 3 | Đủ chạy 6 services + monitoring stack |
-| Lambda | ✅ | Free tier 1M invocations/tháng |
-| S3 + CloudFront | ✅ | Gần miễn phí với traffic thấp |
-| SQS + SNS | ✅ | Free tier 1M requests/tháng |
-| SES | ✅ | 62k email/tháng miễn phí |
-| Secrets Manager | ✅ | Bắt buộc cho DevSecOps |
+| Aurora PostgreSQL | ❌ → RDS PostgreSQL | Aurora has no free tier |
+| ElastiCache Redis | ❌ → Redis pod in EKS | Saves on managed cache cost |
+| OpenSearch | ❌ → PostgreSQL FTS | Sufficient for the current catalog size |
+| Cognito | ❌ → Self-built JWT | Deeper understanding, no vendor lock-in |
+| EKS | ✅ On-Demand t3.medium × 3 | Enough to run 6 services + monitoring stack |
+| Lambda | ✅ | Free tier: 1M invocations/month |
+| S3 + CloudFront | ✅ | Nearly free at low traffic |
+| SQS + SNS | ✅ | Free tier: 1M requests/month |
+| SES | ✅ | 62k free emails/month |
+| Secrets Manager | ✅ | Required for DevSecOps |
 
 ---
 
 ## Roadmap
 
-### ✅ Đã hoàn thành
+### ✅ Completed
 
-- [x] 6 microservices NestJS + frontend Next.js 15 hoàn chỉnh
-- [x] Docker Compose local dev với LocalStack (S3, SQS, SNS, SES)
+- [x] 6 NestJS microservices + fully-featured Next.js 15 frontend
+- [x] Local dev via Docker Compose with LocalStack (S3, SQS, SNS, SES)
 - [x] Terraform: VPC, EKS, RDS, S3, CloudFront, SQS, SNS, IAM IRSA
-- [x] Helm charts cho 7 services (6 app + redis)
-- [x] ArgoCD GitOps CD — auto sync khi values.yaml thay đổi
+- [x] Helm charts for 7 services (6 apps + redis)
+- [x] ArgoCD GitOps CD — auto-sync when values.yaml changes
 - [x] AWS Load Balancer Controller — ALB Ingress
 - [x] Jenkins CI: Lint → Unit Test → Integration Test → SonarQube → Trivy → ECR → GitOps
-- [x] IRSA cho product/order/payment/user service
+- [x] IRSA for product/order/payment/user service
 - [x] S3 product images + CloudFront CDN
 - [x] SQS async: Order → Payment decoupling
 - [x] Full e-commerce flow: browse → cart → checkout → QR payment → confirm
-- [x] **Dev/Test environment** — namespace `ecommerce-dev`, Jenkins Multibranch Pipeline, `values.dev.yaml` overlay riêng
-- [x] **Reliable change detection** — `currentBuild.changeSets` API thay vì diff thủ công, chính xác cho mọi kiểu push
-- [x] **Address management** — quản lý địa chỉ giao hàng, checkout auto-fill
-- [x] **Canary Deployment (Argo Rollouts v1.9.0)** — frontend chuyển `Deployment` → `Rollout`
-- [x] **CloudWatch Container Insights + AWS X-Ray** — metrics/logs toàn bộ pods, distributed tracing qua các services
-- [x] **SonarQube Quality Gate enforcement** — tất cả services pass QG, tích hợp trực tiếp vào scanner
+- [x] **Dev/Test environment** — `ecommerce-dev` namespace, Jenkins Multibranch Pipeline, dedicated `values.dev.yaml` overlay
+- [x] **Reliable change detection** — `currentBuild.changeSets` API instead of manual diffing, accurate for every push type
+- [x] **Address management** — shipping address management, checkout auto-fill
+- [x] **Canary Deployment (Argo Rollouts v1.9.0)** — frontend switched from `Deployment` to `Rollout`
+- [x] **CloudWatch Container Insights + AWS X-Ray** — metrics/logs for all pods, distributed tracing across services
+- [x] **SonarQube Quality Gate enforcement** — all services pass QG, integrated directly into the scanner
 
-### 📋 Kế hoạch tiếp theo (nếu mở rộng)
+### 📋 Next Steps (if extended)
 
 - [ ] **HTTPS/TLS** — AWS ACM certificate + ALB HTTPS listener
-- [ ] **AWS Secrets Manager + External Secrets Operator** — thay plain-text K8s Secret bằng ESO sync
-- [ ] **Elastic IP cho Jenkins EC2** — URL ổn định khi EC2 restart
+- [ ] **AWS Secrets Manager + External Secrets Operator** — replace plain-text K8s Secrets with ESO sync
+- [ ] **Elastic IP for the Jenkins EC2 instance** — a stable URL across EC2 restarts
 
 ---
 
-## Lưu ý quan trọng
+## Important Notes
 
-- **KHÔNG commit `.env`** — dùng `.env.example` làm template, secret quản lý qua AWS Secrets Manager
-- **`synchronize: false`** trong tất cả TypeORM config — migrations phải chạy thủ công, KHÔNG để TypeORM tự tạo/alter schema
-- **Price lưu BIGINT (VND)** — không dùng DECIMAL/FLOAT để tránh floating point error
-- **Sau `docker compose down -v`** — phải chạy lại tất cả migrations
-- **Image rebuild** sau khi thay đổi `package.json`: `docker compose build --no-cache <service>`
-- **Admin role** — set trực tiếp trong DB: `UPDATE users SET role = 'admin' WHERE email = '...'`
+- **NEVER commit `.env`** — use `.env.example` as a template; secrets are managed via AWS Secrets Manager
+- **`synchronize: false`** across all TypeORM configs — migrations must be run manually, TypeORM must never auto-create/alter the schema
+- **Prices stored as BIGINT (VND)** — no DECIMAL/FLOAT, to avoid floating-point errors
+- **After `docker compose down -v`** — all migrations must be re-run
+- **Rebuild the image** after changing `package.json`: `docker compose build --no-cache <service>`
+- **Admin role** — set directly in the DB: `UPDATE users SET role = 'admin' WHERE email = '...'`
