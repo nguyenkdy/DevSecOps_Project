@@ -11,10 +11,10 @@
 3. [Cấu trúc thư mục](#cấu-trúc-thư-mục)
 4. [Luồng CI/CD](#luồng-cicd)
 5. [Môi trường](#môi-trường)
-6. [API Reference](#api-reference)
-7. [Design Patterns](#design-patterns)
-8. [Quyết định Cost](#quyết-định-cost)
-9. [Roadmap](#roadmap)
+6. [Design Patterns](#design-patterns)
+7. [Quyết định Cost](#quyết-định-cost)
+8. [Roadmap](#roadmap)
+9. [Lưu ý quan trọng](#lưu-ý-quan-trọng)
 
 ---
 
@@ -22,43 +22,41 @@
 
 ### Kiến trúc tổng thể
 
-```
-                          ┌─────────────────────────────────────────┐
-                          │              AWS Cloud                   │
-                          │                                          │
-  Browser ──────────────► │  CloudFront CDN (ảnh sản phẩm)         │
-                          │       │                                  │
-                          │       ▼                                  │
-                          │  ALB ──► Frontend (Next.js 15)          │
-                          │              │ API calls                 │
-                          │              ▼                           │
-                          │  ALB ──► API Gateway                    │
-                          │   (JWT validation + rate limiting)       │
-                          │              │                           │
-                          │    ┌─────────┼──────────┬───────────┐   │
-                          │    ▼         ▼          ▼           ▼   │
-                          │  User    Product      Order      Payment │
-                          │ Service  Service     Service    Service  │
-                          │    │         │          │           │    │
-                          │    ▼         ▼          │           ▼    │
-                          │  user_db  product_db   │        payment_db│
-                          │  (PG17)   (PG17+FTS)  │         (PG17)  │
-                          │    │         │          │                │
-                          │    │         ▼          ▼               │
-                          │    │        S3      order_db            │
-                          │    │      (ảnh)    (PG17)               │
-                          │    │                   │                 │
-                          │    ▼                   ▼                 │
-                          │  Redis 8 ◄──────── Redis 8              │
-                          │ (token    (cart TTL 7 ngày)             │
-                          │ blacklist)                               │
-                          │                   │ SQS                 │
-                          │                   ▼                     │
-                          │             Payment Service             │
-                          │                   │ SNS                 │
-                          │                   ▼                     │
-                          │         Lambda (email via SES)          │
-                          └─────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    Browser(["👤 Browser"]) --> CDN["☁️ CloudFront CDN"]
+    CDN --> FE
+
+    subgraph EKS["Amazon EKS — namespace ecommerce"]
+        FE["🖥️ Frontend<br/>Next.js 15"] --> GW["🚪 API Gateway<br/>JWT · Rate limit"]
+
+        GW --> US["User Service"]
+        GW --> PS["Product Service"]
+        GW --> OS["Order Service"]
+        GW --> PAY["Payment Service"]
+
+        US --> REDIS[("Redis 8")]
+        OS --> REDIS
+
+        US --> UDB[("user_db")]
+        PS --> PDB[("product_db")]
+        OS --> ODB[("order_db")]
+        PAY --> PAYDB[("payment_db")]
+
+        PS --> S3[("S3 bucket")]
+    end
+
+    OS -. "SQS: order-created" .-> PAY
+    US -. "SNS: user.registered" .-> LAMBDA["λ Lambda"]
+    PAY -. "SNS: order.paid" .-> LAMBDA
+    LAMBDA -. email .-> SES["✉️ AWS SES"]
+
+    classDef svc fill:#4f46e5,stroke:#312e81,color:#fff
+    classDef db fill:#0891b2,stroke:#164e63,color:#fff
+    classDef ext fill:#6b7280,stroke:#374151,color:#fff
+    class US,PS,OS,PAY,GW,FE svc
+    class UDB,PDB,ODB,PAYDB,REDIS,S3 db
+    class Browser,CDN,SES,LAMBDA ext
 ```
 
 ### Services
@@ -72,16 +70,38 @@
 | payment-service | 3004 | VNPay/MoMo demo, QR code, SQS consumer, webhook |
 | frontend | 3005 | Next.js 15 storefront (SSR + CSR) |
 
-### Giao tiếp giữa services
+### Luồng đặt hàng (checkout → thanh toán)
 
-```
-Đồng bộ (REST):
-  API Gateway ──► User/Product/Order/Payment Service
+Luồng bất đồng bộ quan trọng nhất của hệ thống — Order Service và Payment Service hoàn toàn decoupled qua SQS/SNS:
 
-Bất đồng bộ (AWS):
-  User Service ──► SNS (user.registered) ──► Lambda ──► SES (welcome email)
-  Order Service ──► SQS (order-created) ──► Payment Service
-  Payment Service ──► SNS (order.paid) ──► Lambda (email xác nhận)
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant FE as Frontend
+    participant GW as API Gateway
+    participant OS as Order Service
+    participant PS as Product Service
+    participant SQS as SQS<br/>order-created
+    participant PAY as Payment Service
+    participant SNS as SNS<br/>order.paid
+    participant L as Lambda
+    participant SES as AWS SES
+
+    U->>FE: Checkout
+    FE->>GW: POST /orders/checkout
+    GW->>OS: forward (x-user-id)
+    OS->>PS: verify giá + stock
+    OS->>PS: decrement stock
+    OS->>OS: tạo Order + OrderItem (snapshot giá)
+    OS->>SQS: publish order-created
+    OS-->>FE: Order (status: pending)
+
+    SQS-->>PAY: consume order-created
+    PAY->>PAY: tạo Transaction (pending)
+    U->>PAY: quét QR / auto-approve (demo)
+    PAY->>SNS: publish order.paid
+    SNS-->>L: trigger
+    L->>SES: gửi email xác nhận
 ```
 
 ---
@@ -143,12 +163,8 @@ DevSecOps-Project/
 ├── services/                          # Backend microservices (NestJS)
 │   ├── api-gateway/                   # Port 3000 — entry point
 │   │   ├── src/
-│   │   │   ├── common/
-│   │   │   │   └── jwt.middleware.ts  # JWT validation trước proxy
+│   │   │   ├── common/                # JWT middleware trước proxy
 │   │   │   ├── config/
-│   │   │   │   └── configuration.ts
-│   │   │   ├── app.module.ts
-│   │   │   ├── health.controller.ts
 │   │   │   └── main.ts                # CORS, rate limit, proxy setup
 │   │   ├── Dockerfile
 │   │   └── Jenkinsfile
@@ -156,128 +172,65 @@ DevSecOps-Project/
 │   ├── user-service/                  # Port 3001
 │   │   ├── src/
 │   │   │   ├── auth/                  # Register, login, refresh, logout
-│   │   │   │   ├── auth.controller.ts
-│   │   │   │   ├── auth.service.ts
-│   │   │   │   └── auth.service.spec.ts
 │   │   │   ├── users/                 # Profile, addresses
-│   │   │   │   ├── users.controller.ts
-│   │   │   │   ├── users.service.ts
-│   │   │   │   └── users.service.spec.ts
-│   │   │   ├── common/                # Guards, decorators
-│   │   │   ├── database/
-│   │   │   │   ├── migrations/
-│   │   │   │   └── data-source.ts
-│   │   │   └── app.module.ts
+│   │   │   ├── common/                # Guards, decorators, filters
+│   │   │   └── database/migrations/
 │   │   ├── Dockerfile
 │   │   └── Jenkinsfile
 │   │
 │   ├── product-service/               # Port 3002
 │   │   ├── src/
-│   │   │   ├── products/              # CRUD, search, upload ảnh
-│   │   │   │   ├── products.controller.ts
-│   │   │   │   ├── products.service.ts
-│   │   │   │   └── products.service.spec.ts
+│   │   │   ├── products/              # CRUD, upload ảnh
 │   │   │   ├── categories/            # Category tree (self-referential)
-│   │   │   ├── upload/
-│   │   │   │   └── upload.service.ts  # S3 PutObject, CloudFront URL
-│   │   │   └── database/
-│   │   │       └── migrations/
-│   │   │           └── 1700000000000-CreateProductsCategoriesFts.ts
+│   │   │   ├── search/                # Full-text search tiếng Việt
+│   │   │   ├── upload/                # S3 PutObject, CloudFront URL
+│   │   │   └── database/migrations/
 │   │   ├── Dockerfile
 │   │   └── Jenkinsfile
 │   │
 │   ├── order-service/                 # Port 3003
 │   │   ├── src/
 │   │   │   ├── cart/                  # Redis cart operations
-│   │   │   │   └── cart.service.spec.ts
 │   │   │   ├── orders/                # Checkout flow, order management
-│   │   │   │   └── orders.service.spec.ts
-│   │   │   └── database/
+│   │   │   └── database/migrations/
 │   │   ├── Dockerfile
 │   │   └── Jenkinsfile
 │   │
 │   └── payment-service/               # Port 3004
 │       ├── src/
 │       │   ├── payments/              # VNPay demo, QR, auto-approve
-│       │   │   └── payments.service.spec.ts
-│       │   ├── common/
-│       │   │   └── sqs-consumer/      # Poll SQS queue order-created
-│       │   └── database/
+│       │   ├── common/sqs-consumer/   # Poll SQS queue order-created
+│       │   └── database/migrations/
 │       ├── Dockerfile
 │       └── Jenkinsfile
 │
 ├── frontend/                          # Next.js 15 — Port 3005
 │   ├── src/
-│   │   ├── app/                       # App Router
-│   │   │   ├── page.tsx               # Homepage SSR (featured products)
-│   │   │   ├── products/
-│   │   │   │   ├── page.tsx           # Product listing SSR
-│   │   │   │   └── [slug]/page.tsx    # Product detail
-│   │   │   ├── cart/page.tsx
-│   │   │   ├── checkout/
-│   │   │   │   ├── page.tsx
-│   │   │   │   └── payment/page.tsx   # QR code thanh toán
-│   │   │   ├── orders/
-│   │   │   │   ├── page.tsx
-│   │   │   │   └── [id]/page.tsx
-│   │   │   ├── login/page.tsx
-│   │   │   ├── register/page.tsx
-│   │   │   └── profile/page.tsx
+│   │   ├── app/                       # App Router (products, cart, checkout, orders, profile...)
 │   │   ├── components/
-│   │   │   ├── products/
-│   │   │   │   └── ProductCard.tsx
-│   │   │   └── layout/
-│   │   │       └── Header.tsx
-│   │   ├── contexts/
-│   │   │   ├── AuthContext.tsx        # JWT localStorage, auto-refresh 401
-│   │   │   └── CartContext.tsx        # Cart persistence localStorage
-│   │   └── lib/
-│   │       ├── api.ts                 # API client (server + client side)
-│   │       ├── types.ts
-│   │       └── utils.ts
-│   ├── next.config.js
+│   │   ├── contexts/                  # AuthContext, CartContext
+│   │   └── lib/                       # API client, types, utils
 │   ├── Dockerfile
 │   └── Jenkinsfile
 │
 ├── infra/
-│   ├── docker/
-│   │   ├── init-localstack.sh         # Tạo S3, SQS, SNS trên LocalStack
-│   │   └── init-multiple-dbs.sh       # Tạo 4 databases PostgreSQL
+│   ├── docker/                        # Script init LocalStack + multi-database
+│   ├── scripts/                       # Seed dữ liệu sản phẩm
 │   │
 │   ├── terraform/                     # AWS Infrastructure as Code
-│   │   ├── main.tf                    # Provider, backend config
-│   │   ├── vpc.tf                     # VPC, subnets, NAT Gateway
-│   │   ├── eks.tf                     # EKS cluster + managed node group
-│   │   ├── rds.tf                     # RDS PostgreSQL 17
-│   │   ├── s3.tf                      # S3 bucket product images
-│   │   ├── cloudfront.tf              # CloudFront distribution
-│   │   ├── sqs.tf                     # SQS queues
-│   │   ├── sns.tf                     # SNS topics
-│   │   ├── iam.tf                     # IRSA roles cho service accounts
-│   │   ├── secrets.tf                 # AWS Secrets Manager entries
-│   │   ├── variables.tf
-│   │   ├── outputs.tf                 # RDS endpoint, CloudFront URL, ...
-│   │   └── terraform.tfvars.example
+│   │   ├── vpc.tf, eks.tf, rds.tf
+│   │   ├── s3.tf, cloudfront.tf
+│   │   ├── sqs.tf, sns.tf, iam.tf, secrets.tf
+│   │   └── variables.tf, outputs.tf
 │   │
 │   └── k8s/                           # Helm charts (GitOps — ArgoCD đọc)
-│       ├── api-gateway/
-│       │   ├── Chart.yaml
-│       │   ├── values.yaml            # Image tag, env, ingress config
-│       │   └── templates/
-│       │       ├── deployment.yaml
-│       │       ├── service.yaml
-│       │       ├── configmap.yaml
-│       │       ├── ingress.yaml       # ALB ingress annotation
-│       │       └── external-secret.yaml
-│       ├── user-service/              # (cấu trúc tương tự)
-│       ├── product-service/
-│       ├── order-service/
-│       ├── payment-service/
-│       ├── frontend/
-│       └── redis/
+│       ├── api-gateway/, user-service/, product-service/
+│       ├── order-service/, payment-service/, frontend/, redis/
+│       │   └── values.yaml + values.dev.yaml + templates/
+│       └── observability/             # ADOT Collector (OTel → X-Ray)
 │
 ├── docker-compose.yml                 # Local dev: tất cả services + LocalStack
-├── CLAUDE.md                          # Context cho Claude Code AI assistant
+├── CLAUDE.md                          # Context cho AI assistant
 └── README.md                          # File này
 ```
 
@@ -285,240 +238,73 @@ DevSecOps-Project/
 
 ## Luồng CI/CD
 
-### Tổng quan
+```mermaid
+flowchart LR
+    DEV["👨‍💻 Developer"] -->|git push| GH1["GitHub<br/>main / develop"]
+    GH1 -->|webhook| CI
 
-```
-Developer push code
-        │
-        ▼
-   GitHub (main)
-        │ webhook
-        ▼
-   Jenkins CI
-        │
-        ├─ Detect Changes (chỉ build service có thay đổi)
-        ├─ Install dependencies
-        ├─ Lint + TypeCheck / Build
-        ├─ Unit Tests + Coverage
-        ├─ Integration Tests (PostgreSQL + Redis containers)
-        ├─ SonarQube SAST scan
-        ├─ Trivy container security scan
-        ├─ Build Docker image (multi-stage, production target)
-        ├─ Push to AWS ECR (tag: {buildNum}-{gitSha} + latest)
-        └─ Update Helm values.yaml (image tag mới) → git push
-                    │
-                    ▼
-              GitHub (values.yaml updated)
-                    │ ArgoCD polling / webhook
-                    ▼
-              ArgoCD CD
-                    │
-                    ├─ Detect diff trong Helm chart
-                    ├─ Apply Kubernetes manifests
-                    └─ Rolling update deployment (hoặc Canary nếu service dùng Argo Rollouts)
-                                │
-                                ▼
-                         EKS (namespace: ecommerce)
-                         Pod chạy image mới ✅
+    subgraph CI["Jenkins CI Pipeline"]
+        direction TB
+        C1["Detect changes<br/>(theo từng service)"] --> C2["Lint & Build"]
+        C2 --> C3["Unit + Integration Tests<br/>(PostgreSQL + Redis)"]
+        C3 --> C4["SonarQube SAST<br/>Quality Gate"]
+        C4 --> C5["Trivy<br/>container scan"]
+        C5 --> C6["Build & push<br/>AWS ECR"]
+        C6 --> C7["Update values.yaml<br/>+ git push"]
+    end
+
+    C7 --> GH2["GitHub<br/>infra/k8s"]
+    GH2 -->|poll ~3 phút| ARGO["ArgoCD"]
+    ARGO -->|sync| EKS["EKS<br/>ecommerce / ecommerce-dev"]
+
+    classDef stage fill:#4f46e5,stroke:#312e81,color:#fff
+    class C1,C2,C3,C4,C5,C6,C7 stage
 ```
 
-### Chi tiết Jenkins Pipeline (mỗi service)
+**Ghi chú:**
+- `[skip ci]` trong commit message ngăn manifest commit (bước cuối) trigger lại pipeline.
+- Phát hiện thay đổi dùng `currentBuild.changeSets` (Jenkins SCM API) — chính xác với cả single commit, batch push và merge commit.
+- Mỗi service có Jenkins job riêng, chỉ build khi có thay đổi trong thư mục service tương ứng — tránh rebuild toàn bộ monorepo.
+- ArgoCD là nguồn sự thật duy nhất (source of truth) cho trạng thái cluster — Jenkins **không** chạy `kubectl apply`.
 
-```
-Stage 1: Checkout
-  └── git checkout từ GitHub
+### Canary Deployment (frontend)
 
-Stage 2: Detect Changes
-  └── currentBuild.changeSets API (Jenkins SCM) — đọc danh sách file thay đổi chính xác từ push event
-      Nếu không có file thay đổi trong services/{name}/ → SKIP toàn pipeline
-      [skip ci] trong commit message → bỏ qua (tránh loop khi Jenkins push manifest)
+```mermaid
+flowchart LR
+    A["Image tag mới<br/>trong values.yaml"] --> B["Argo Rollouts:<br/>tạo canary pod (~40% traffic)"]
+    B --> C{"Pause<br/>verify thủ công"}
+    C -->|OK| D["Promote:<br/>100% traffic sang bản mới"]
+    C -->|Lỗi| E["Abort / Undo:<br/>rollback về bản ổn định"]
 
-Stage 3: Install
-  └── npm ci --legacy-peer-deps
-
-Stage 4: Lint & Build (parallel)
-  ├── ESLint
-  └── npm run build (TypeScript compile check)
-
-Stage 5: Unit Test
-  └── Jest + coverage report (lcov → SonarQube)
-
-Stage 6: Integration Test
-  └── Spin up PostgreSQL + Redis containers
-      npm run test:integration
-      Tear down containers
-
-Stage 7: SonarQube SAST
-  └── sonar-scanner: code smells, bugs, vulnerabilities, coverage
-
-Stage 8: Trivy Security Scan
-  └── trivy image --severity HIGH,CRITICAL
-      (exit-code 0 = report only, không block)
-
-Stage 9: Build & Push ECR  ← chỉ chạy trên nhánh main
-  └── docker build --target production
-      docker push ECR:{buildNum}-{gitSha}
-      docker push ECR:latest
-
-Stage 10: Update GitOps Manifest  ← chỉ chạy trên nhánh main
-  └── sed -i "s|tag:.*|tag: {IMAGE_TAG}|" infra/k8s/{service}/values.yaml
-      git commit -am "ci: update {service} to {IMAGE_TAG}"
-      git push origin main
+    classDef good fill:#059669,stroke:#065f46,color:#fff
+    classDef bad fill:#dc2626,stroke:#7f1d1d,color:#fff
+    classDef neutral fill:#4f46e5,stroke:#312e81,color:#fff
+    class D good
+    class E bad
+    class A,B,C neutral
 ```
 
-### Multi-repo monorepo strategy
-
-Toàn bộ code nằm trong 1 repository. Jenkins có **6 pipeline jobs** riêng biệt (1 per service + frontend), mỗi job chỉ trigger build khi có file thay đổi trong thư mục service tương ứng. Điều này tránh rebuild không cần thiết.
-
-### ArgoCD GitOps
-
-ArgoCD theo dõi thư mục `infra/k8s/` trên nhánh `main`. Khi Jenkins cập nhật `image.tag` trong `values.yaml` và push lên GitHub, ArgoCD phát hiện diff và tự động sync (rolling update) deployment tương ứng trên EKS.
-
-```
-GitHub (infra/k8s/{service}/values.yaml)
-         ↑ Jenkins push tag mới
-         │
-         └── ArgoCD poll mỗi 3 phút (hoặc webhook)
-                    │
-                    ▼
-             Helm template render
-                    │
-                    ▼
-             kubectl apply (rolling update)
-```
+ALB sticky sessions (`stickiness.lb_cookie`) đảm bảo mỗi user luôn hit cùng một pod version trong lúc canary đang chạy — tránh CSS hash mismatch giữa bản mới và bản cũ.
 
 ---
 
 ## Môi trường
 
-### URLs truy cập
-
 | | Production | Dev |
 |--|------------|-----|
-| **Frontend** | http://k8s-ecommerc-frontend-74bcefc5c8-1434814566.ap-southeast-1.elb.amazonaws.com | http://k8s-ecommerc-frontend-098809d8ea-1169492521.ap-southeast-1.elb.amazonaws.com |
-| **API Gateway** | http://k8s-ecommerc-apigatew-bac50f6700-1615445116.ap-southeast-1.elb.amazonaws.com | http://k8s-ecommerc-apigatew-afc7d5cc0d-1740156965.ap-southeast-1.elb.amazonaws.com |
-| **ArgoCD** | http://a5909144139e1478b97145fd2f27661c-372496131.ap-southeast-1.elb.amazonaws.com | — |
+| **Namespace** | `ecommerce` | `ecommerce-dev` |
+| **Nhánh Git** | `main` | `develop` |
+| **Trigger** | Jenkins pipeline (per-service) | Jenkins Multibranch Pipeline (webhook) |
+| **Cluster** | `ecommerce-eks` (ap-southeast-1) | cùng cluster |
 
-- **Production**: namespace `ecommerce`, nhánh `main`, EKS cluster `ecommerce-eks` (ap-southeast-1)
-- **Dev**: namespace `ecommerce-dev`, nhánh `develop`, cùng cluster — trigger tự động qua GitHub webhook → Jenkins Multibranch Pipeline
-
-> Chi tiết hạ tầng, vận hành, shutdown/startup xem [CLAUDE.md](CLAUDE.md)
-
----
-
-## API Reference
-
-Tất cả requests đều qua **API Gateway** (`localhost:3000` local / ALB URL production).
-
-### Authentication
-
-```bash
-BASE="http://localhost:3000/api/v1"
-
-# Đăng ký
-curl -X POST $BASE/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"fullName":"Nguyen Van A","email":"user@example.com","password":"Password@123"}'
-
-# Đăng nhập → trả về { accessToken, refreshToken }
-curl -X POST $BASE/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"Password@123"}'
-
-# Refresh token
-curl -X POST $BASE/auth/refresh \
-  -H "Content-Type: application/json" \
-  -d '{"refreshToken":"<refreshToken>"}'
-
-# Đăng xuất (blacklist token trong Redis)
-curl -X POST $BASE/auth/logout \
-  -H "Authorization: Bearer <accessToken>"
-```
-
-### Products (public — không cần token)
-
-```bash
-# Danh sách + search + filter
-GET $BASE/products?page=1&limit=16&search=iphone&categoryId=<uuid>
-
-# Chi tiết theo slug
-GET $BASE/products/iphone-15-pro-max-256gb
-
-# Danh mục phẳng
-GET $BASE/categories
-
-# Danh mục dạng cây
-GET $BASE/categories/tree
-```
-
-### Products (admin only)
-
-```bash
-# Tạo sản phẩm
-curl -X POST $BASE/products \
-  -H "Authorization: Bearer <adminToken>" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Tên SP","price":1000000,"stockQty":50,"categoryId":"<uuid>"}'
-
-# Upload ảnh sản phẩm (multipart)
-curl -X POST $BASE/products/<id>/images \
-  -H "Authorization: Bearer <adminToken>" \
-  -F "file=@/path/to/image.jpg"
-
-# Tạo category
-curl -X POST $BASE/categories \
-  -H "Authorization: Bearer <adminToken>" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Điện thoại"}'
-```
-
-### Cart & Orders
-
-```bash
-# Thêm vào giỏ
-curl -X POST $BASE/cart \
-  -H "Authorization: Bearer <accessToken>" \
-  -H "Content-Type: application/json" \
-  -d '{"productId":"<uuid>","quantity":2}'
-
-# Xem giỏ
-curl $BASE/cart -H "Authorization: Bearer <accessToken>"
-
-# Checkout — tạo đơn hàng
-curl -X POST $BASE/orders/checkout \
-  -H "Authorization: Bearer <accessToken>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "shippingAddress": {
-      "fullName": "Nguyen Van A",
-      "phone": "0901234567",
-      "addressLine1": "123 Nguyen Trai",
-      "city": "Ho Chi Minh"
-    },
-    "paymentMethod": "vnpay"
-  }'
-
-# Lịch sử đơn hàng
-curl $BASE/orders?page=1 -H "Authorization: Bearer <accessToken>"
-```
-
-### Payments
-
-```bash
-# Lấy QR code thanh toán (trả về base64 + paymentRef)
-curl $BASE/payments/<orderId> -H "Authorization: Bearer <accessToken>"
-
-# Auto-approve — duyệt ngay không cần scan QR (demo only)
-curl -X POST $BASE/payments/auto-approve/<paymentRef> \
-  -H "Authorization: Bearer <accessToken>"
-```
+> Chi tiết hạ tầng, vận hành, shutdown/startup, secrets... xem [CLAUDE.md](CLAUDE.md)
 
 ---
 
 ## Design Patterns
 
 ### Distributed JWT
-Mỗi service tự verify JWT bằng shared `JWT_ACCESS_SECRET` — không gọi User Service. Giảm latency và tránh single point of failure. Api Gateway validate và forward `x-user-id`, `x-user-email`, `x-user-role` qua internal headers.
+Mỗi service tự verify JWT bằng shared `JWT_ACCESS_SECRET` — không gọi User Service. Giảm latency và tránh single point of failure. API Gateway validate và forward `x-user-id`, `x-user-email`, `x-user-role` qua internal headers.
 
 ### Snapshot Pattern (OrderItem)
 Giá và tên sản phẩm được snapshot vào `order_items` tại thời điểm checkout. Lịch sử đơn hàng không bị ảnh hưởng khi sản phẩm thay đổi giá sau đó.
@@ -530,18 +316,13 @@ Order Service publish event `order-created` lên SQS sau khi tạo đơn thành 
 Giỏ hàng lưu Redis với key `cart:{userId}`, TTL 7 ngày. Tự expire, không tốn storage PostgreSQL, read/write O(1).
 
 ### Full-text Search tiếng Việt
-PostgreSQL extension `unaccent` + `pg_trgm` + `to_tsvector` với config `vietnamese_unaccent`. DB trigger tự cập nhật `tsvector` khi product thay đổi. GIN index đảm bảo query sub-millisecond. Thay thế OpenSearch để tiết kiệm ~$25/tháng.
+PostgreSQL extension `unaccent` + `pg_trgm` + `to_tsvector` với config `vietnamese_unaccent`. DB trigger tự cập nhật `tsvector` khi product thay đổi. GIN index đảm bảo query sub-millisecond. Thay thế OpenSearch để tiết kiệm chi phí.
 
 ### GitOps (Jenkins → ArgoCD)
-Jenkins CI chỉ build image và cập nhật `image.tag` trong `values.yaml` rồi push lên Git. ArgoCD là source of truth — tự detect diff và apply lên EKS. Không có bước `kubectl apply` trong CI pipeline.
+Jenkins CI chỉ build image và cập nhật `image.tag` trong `values.yaml` rồi push lên Git. ArgoCD là source of truth — tự detect diff và apply lên EKS.
 
 ### Canary Deployment (Argo Rollouts)
-Frontend dùng `argoproj.io/v1alpha1 Rollout` thay vì `apps/v1 Deployment`. Khi có image tag mới, Argo Rollouts tự động:
-1. Spin up 1 canary pod (new version) — ~33% traffic
-2. **Pause** chờ verify thủ công
-3. Promote → tất cả pods chuyển sang version mới
-
-ALB sticky sessions (`stickiness.lb_cookie`) đảm bảo mỗi user luôn hit cùng một pod version — tránh CSS hash mismatch giữa canary và stable pods.
+Frontend dùng `argoproj.io/v1alpha1 Rollout` thay vì `apps/v1 Deployment` để giảm rủi ro khi deploy bản mới — xem sơ đồ ở mục [Luồng CI/CD](#luồng-cicd).
 
 ---
 
@@ -549,18 +330,16 @@ ALB sticky sessions (`stickiness.lb_cookie`) đảm bảo mỗi user luôn hit c
 
 | AWS Service | Quyết định | Lý do |
 |-------------|-----------|-------|
-| Aurora PostgreSQL | ❌ → RDS PostgreSQL | Aurora không có free tier (~$29/tháng) |
-| ElastiCache Redis | ❌ → Redis pod trong EKS | Tiết kiệm ~$12/tháng |
-| OpenSearch | ❌ → PostgreSQL FTS | Tiết kiệm ~$25/tháng, đủ cho 10k sản phẩm |
+| Aurora PostgreSQL | ❌ → RDS PostgreSQL | Aurora không có free tier |
+| ElastiCache Redis | ❌ → Redis pod trong EKS | Tiết kiệm chi phí managed cache |
+| OpenSearch | ❌ → PostgreSQL FTS | Đủ cho quy mô catalog hiện tại |
 | Cognito | ❌ → JWT tự build | Hiểu sâu hơn, không vendor lock-in |
-| EKS | ✅ On-Demand t3.medium × 3 | 3 nodes để chạy đủ 6 services + monitoring stack |
+| EKS | ✅ On-Demand t3.medium × 3 | Đủ chạy 6 services + monitoring stack |
 | Lambda | ✅ | Free tier 1M invocations/tháng |
 | S3 + CloudFront | ✅ | Gần miễn phí với traffic thấp |
 | SQS + SNS | ✅ | Free tier 1M requests/tháng |
 | SES | ✅ | 62k email/tháng miễn phí |
 | Secrets Manager | ✅ | Bắt buộc cho DevSecOps |
-
-**Chi phí ước tính production:** ~$110–130/tháng (3 × t3.medium ~$90 + RDS db.t3.micro ~$15 + NAT Gateway + CloudWatch Logs)
 
 ---
 
@@ -569,7 +348,6 @@ ALB sticky sessions (`stickiness.lb_cookie`) đảm bảo mỗi user luôn hit c
 ### ✅ Đã hoàn thành
 
 - [x] 6 microservices NestJS + frontend Next.js 15 hoàn chỉnh
-- [x] 55 unit tests pass (user, product, order, payment)
 - [x] Docker Compose local dev với LocalStack (S3, SQS, SNS, SES)
 - [x] Terraform: VPC, EKS, RDS, S3, CloudFront, SQS, SNS, IAM IRSA
 - [x] Helm charts cho 7 services (6 app + redis)
@@ -577,23 +355,21 @@ ALB sticky sessions (`stickiness.lb_cookie`) đảm bảo mỗi user luôn hit c
 - [x] AWS Load Balancer Controller — ALB Ingress
 - [x] Jenkins CI: Lint → Unit Test → Integration Test → SonarQube → Trivy → ECR → GitOps
 - [x] IRSA cho product/order/payment/user service
-- [x] RDS migrations production (compiled JS, không cần ts-node)
 - [x] S3 product images + CloudFront CDN
 - [x] SQS async: Order → Payment decoupling
-- [x] CORS production configuration (CORS_ORIGIN env)
 - [x] Full e-commerce flow: browse → cart → checkout → QR payment → confirm
-- [x] **Dev/Test environment** — namespace `ecommerce-dev`, Jenkins Multibranch Pipeline (GitHub Branch Source + webhook), image tag `develop-{buildNum}-{sha}`, `values.dev.yaml` overlay, databases `user_db_dev`/`product_db_dev`/`order_db_dev`/`payment_db_dev`, K8s secrets `{svc}-dev-secret`, api-gateway-dev routing đến `-dev` services
-- [x] **Reliable change detection** — Jenkins dùng `currentBuild.changeSets` API thay `git diff HEAD~1` — chính xác cho single commit, batch push, merge commit. `[skip ci]` ngăn manifest commits trigger lại pipeline
-- [x] **Address management** — user-service thêm `PATCH/DELETE /api/v1/users/me/addresses/:id`; frontend profile page quản lý địa chỉ (thêm/sửa/xóa/đặt mặc định); checkout auto-fill từ địa chỉ đã lưu
-- [x] **Canary Deployment (Argo Rollouts v1.9.0)** — frontend Helm chart chuyển `Deployment` → `Rollout`, strategy canary `setWeight: 40` + `pause: {}`, ALB sticky sessions, replicaCount: 3
-- [x] **CloudWatch Container Insights + AWS X-Ray** — metrics/logs toàn bộ pods, distributed tracing qua 5 services; ADOT DaemonSet nhận OTLP traces từ NestJS (port 4318) → X-Ray; mỗi service có `tracing.ts` với OTel SDK instrumentation HTTP + NestJS + PostgreSQL + IORedis
-- [x] **SonarQube Quality Gate enforcement** — tất cả 6 services pass QG; `sonar.qualitygate.wait=true` tích hợp trực tiếp vào scanner (không cần webhook); coverage exclusions cho infrastructure files; 62 unit tests tổng cộng
+- [x] **Dev/Test environment** — namespace `ecommerce-dev`, Jenkins Multibranch Pipeline, `values.dev.yaml` overlay riêng
+- [x] **Reliable change detection** — `currentBuild.changeSets` API thay vì diff thủ công, chính xác cho mọi kiểu push
+- [x] **Address management** — quản lý địa chỉ giao hàng, checkout auto-fill
+- [x] **Canary Deployment (Argo Rollouts v1.9.0)** — frontend chuyển `Deployment` → `Rollout`
+- [x] **CloudWatch Container Insights + AWS X-Ray** — metrics/logs toàn bộ pods, distributed tracing qua các services
+- [x] **SonarQube Quality Gate enforcement** — tất cả services pass QG, tích hợp trực tiếp vào scanner
 
 ### 📋 Kế hoạch tiếp theo (nếu mở rộng)
 
-- [ ] **HTTPS/TLS** — AWS ACM certificate + ALB HTTPS listener port 443
-- [ ] **AWS Secrets Manager + External Secrets Operator** — thay plain-text K8s Secret bằng ESO sync từ Secrets Manager
-- [ ] **Elastic IP cho Jenkins EC2** — SonarQube URL ổn định khi EC2 restart
+- [ ] **HTTPS/TLS** — AWS ACM certificate + ALB HTTPS listener
+- [ ] **AWS Secrets Manager + External Secrets Operator** — thay plain-text K8s Secret bằng ESO sync
+- [ ] **Elastic IP cho Jenkins EC2** — URL ổn định khi EC2 restart
 
 ---
 
