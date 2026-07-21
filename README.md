@@ -47,7 +47,7 @@ flowchart TB
     end
 
     OS -. "SQS: order-created" .-> PAY
-    US -. "SNS: user.registered" .-> LAMBDA["λ Lambda"]
+    US -. "SNS: user.registered" .-> LAMBDA["Lambda"]
     PAY -. "SNS: order.paid" .-> LAMBDA
     LAMBDA -. email .-> SES["✉️ AWS SES"]
 
